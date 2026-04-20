@@ -17,7 +17,20 @@ ARGS=(
 )
 
 if [[ -n "${KV_CACHE_DTYPE:-}" ]]; then
-  ARGS+=( --kv-cache-dtype "${KV_CACHE_DTYPE}" )
+  case "${KV_CACHE_DTYPE}" in
+    fp8)
+      echo "KV_CACHE_DTYPE=fp8 is not a valid SGLang CLI value; using fp8_e4m3." >&2
+      ARGS+=( --kv-cache-dtype fp8_e4m3 )
+      ;;
+    auto|fp8_e5m2|fp8_e4m3|bf16|bfloat16|fp4_e2m1)
+      ARGS+=( --kv-cache-dtype "${KV_CACHE_DTYPE}" )
+      ;;
+    *)
+      echo "ERROR: Unsupported KV_CACHE_DTYPE='${KV_CACHE_DTYPE}'." >&2
+      echo "Supported values: auto, fp8_e5m2, fp8_e4m3, bf16, bfloat16, fp4_e2m1." >&2
+      exit 2
+      ;;
+  esac
 fi
 
 if [[ -n "${API_KEY:-}" ]]; then

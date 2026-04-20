@@ -36,7 +36,7 @@ Optional:
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
 * `TOOL_SERVER=...` if using tool execution
-* `KV_CACHE_DTYPE=...` to override KV cache precision (for example `fp8`)
+* `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
 
 ## Run
 
