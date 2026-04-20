@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ARGS=(
-  python -m sglang.launch_server
+  sglang serve
   --host 0.0.0.0
   --port "${HTTP_PORT}"
   --model-path "${MODEL_PATH}"
