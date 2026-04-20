@@ -16,6 +16,10 @@ ARGS=(
   --sampling-defaults model
 )
 
+if [[ -n "${KV_CACHE_DTYPE:-}" ]]; then
+  ARGS+=( --kv-cache-dtype "${KV_CACHE_DTYPE}" )
+fi
+
 if [[ -n "${API_KEY:-}" ]]; then
   ARGS+=( --api-key "${API_KEY}" )
 fi
