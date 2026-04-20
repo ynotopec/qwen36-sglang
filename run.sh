@@ -48,6 +48,10 @@ if [[ -z "${API_KEY:-}" ]]; then
   return 1 2>/dev/null || exit 1
 fi
 
+if [[ -z "${HF_TOKEN:-}" ]]; then
+  echo "WARNING: HF_TOKEN is not set; model downloads from the Hugging Face Hub may be rate-limited." >&2
+fi
+
 mkdir -p "${HF_HOME}"
 
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
