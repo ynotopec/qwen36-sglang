@@ -2,7 +2,11 @@ ARG BASE_IMAGE=lmsysorg/sglang:dev-cu13
 FROM ${BASE_IMAGE}
 
 RUN pip install --no-cache-dir --upgrade \
-    "huggingface_hub[cli]>=0.30.0"
+    "git+https://github.com/huggingface/transformers.git"
+#RUN pip install --no-cache-dir --upgrade \
+#    "huggingface_hub[cli]>=0.30.0"
+RUN pip install --no-cache-dir --upgrade \
+    sglang sglang[all]
 
 ENV MODEL_PATH="Qwen/Qwen3.6-35B-A3B-FP8" \
     SERVED_MODEL_NAME="qwen3.6-35b-a3b-fp8" \

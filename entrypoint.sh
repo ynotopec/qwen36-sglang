@@ -14,6 +14,7 @@ ARGS=(
   --chunked-prefill-size "${CHUNKED_PREFILL_SIZE}"
   --reasoning-parser qwen3
   --sampling-defaults model
+  --sleep-on-idle
 )
 
 if [[ -n "${KV_CACHE_DTYPE:-}" ]]; then
