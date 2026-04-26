@@ -27,6 +27,7 @@ ENV MODEL_PATH="Qwen/Qwen3.6-35B-A3B-FP8" \
     TRANSFORMERS_CACHE="/app/models" \
     HF_HUB_CACHE="/app/models" \
     XDG_CACHE_HOME="/app/models" \
+    FLASHINFER_DISABLE_VERSION_CHECK="1" \
     PYTHONUNBUFFERED="1"
 
 RUN mkdir -p /app/models /app/data
