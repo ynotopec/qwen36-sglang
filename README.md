@@ -102,6 +102,22 @@ Then increase gradually.
 * If you see `python -m sglang.launch_server is still supported`, update your startup command to `sglang serve`.
 * Warnings like `Unexpected error during package walk: cutlass.cute.experimental` are generally non-fatal in current SGLang/CUTLASS combinations.
 * This image defaults `FLASHINFER_DISABLE_VERSION_CHECK=1` to avoid startup failures caused by transient package skew in upstream base images.
+* `run.sh` now defaults to `RESTART_POLICY=unless-stopped`, so the container auto-restarts when SGLang hangs or crashes. Set `RESTART_POLICY=no` to keep the previous one-shot `--rm` behavior.
+
+## Troubleshooting: `/health` returns 503 with detokenizer heartbeat timeout
+
+If logs repeatedly show messages like:
+
+* `Health check failed. Server couldn't get a response from detokenizer...`
+* `GET /health ... 503 Service Unavailable`
+
+while `/v1/models` can still return `200`, it usually means an internal SGLang worker got stuck (often after driver/CUDA stack changes) rather than an API-key/network issue.
+
+Recommended actions:
+
+1. Keep the default `RESTART_POLICY=unless-stopped` so Docker restarts the container automatically on process failure.
+2. Rebuild and run with conservative memory settings first (for example lower `MEM_FRACTION_STATIC` and `MAX_RUNNING_REQUESTS`), then scale up.
+3. If the issue started right after a CUDA or base-image update, pin your previously known-good image/tag instead of tracking moving `dev` tags.
 
 [1]: https://hub.docker.com/r/lmsysorg/sglang/tags "lmsysorg/sglang - Docker Image"
 [2]: https://github.com/sgl-project/sglang/issues/20973 "[Bug] can't load AxionML/Qwen3.5-35B-A3B-NVFP4 on fresh `lmsysorg/sglang:dev-cu13` on Nvidia DGX Spark · Issue #20973 · sgl-project/sglang · GitHub"

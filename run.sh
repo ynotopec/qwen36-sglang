@@ -42,6 +42,7 @@ fi
 : "${GPU_DEVICE:=all}"
 : "${SGLANG_ENABLE_SPEC_V2:=0}"
 : "${MAMBA_SCHEDULER_STRATEGY:=no_buffer}"
+: "${RESTART_POLICY:=unless-stopped}"
 
 if [[ -z "${API_KEY:-}" ]]; then
   echo "ERROR: API_KEY is required in .env" >&2
@@ -61,7 +62,14 @@ if [[ -t 0 && -t 1 ]]; then
   DOCKER_TTY_ARGS=(-it)
 fi
 
-exec docker run --rm "${DOCKER_TTY_ARGS[@]}" \
+DOCKER_RUN_CLEANUP_ARGS=(--rm)
+if [[ "${RESTART_POLICY}" != "no" ]]; then
+  DOCKER_RUN_CLEANUP_ARGS=(--restart "${RESTART_POLICY}")
+fi
+
+echo "Starting container '${CONTAINER_NAME}' with restart policy '${RESTART_POLICY}'"
+
+exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   --name "${CONTAINER_NAME}" \
   --gpus "${GPU_DEVICE}" \
   --shm-size "${SHM_SIZE}" \
