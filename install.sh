@@ -5,6 +5,9 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="$(basename "${PROJECT_DIR}")"
 IMAGE_NAME="${IMAGE_NAME:-${PROJECT_NAME}:latest}"
 BASE_IMAGE="${BASE_IMAGE:-lmsysorg/sglang:dev-cu13}"
+UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS:-0}"
+UPGRADE_SGLANG="${UPGRADE_SGLANG:-0}"
+SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX:-https://docs.sglang.ai/whl/cu130/}"
 
 cd "${PROJECT_DIR}"
 
@@ -27,6 +30,9 @@ echo "Building ${IMAGE_NAME}..."
 docker build \
   --pull \
   --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+  --build-arg UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS}" \
+  --build-arg UPGRADE_SGLANG="${UPGRADE_SGLANG}" \
+  --build-arg SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX}" \
   -t "${IMAGE_NAME}" \
   .
 
