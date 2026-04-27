@@ -1,12 +1,23 @@
 ARG BASE_IMAGE=lmsysorg/sglang:dev-cu13
 FROM ${BASE_IMAGE}
 
-RUN pip install --no-cache-dir --upgrade \
-    "git+https://github.com/huggingface/transformers.git"
-#RUN pip install --no-cache-dir --upgrade \
-#    "huggingface_hub[cli]>=0.30.0"
-RUN pip install --no-cache-dir --upgrade \
-    sglang sglang[all]
+ARG UPGRADE_TRANSFORMERS=0
+ARG UPGRADE_SGLANG=0
+ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
+
+RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
+      pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
+    else \
+      echo "Skipping transformers upgrade to keep base-image CUDA stack coherent."; \
+    fi
+
+RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
+      pip install --no-cache-dir --upgrade \
+        sglang sglang[all] sglang-kernel \
+        --index-url "${SGLANG_WHL_INDEX}"; \
+    else \
+      echo "Skipping sglang upgrade; using base-image prebuilt binaries."; \
+    fi
 
 ENV MODEL_PATH="Qwen/Qwen3.6-35B-A3B-FP8" \
     SERVED_MODEL_NAME="qwen3.6-35b-a3b-fp8" \
