@@ -22,6 +22,8 @@ Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker.
 
 If `.env` does not exist, it is created from `.env.example`.
 
+`run.sh` now treats `.env.example` as the default source of truth: any unset variable is loaded from commented defaults in `.env.example`, and `.env` only overrides what you change.
+
 ## Configure
 
 Edit `.env` and set at least:
@@ -121,6 +123,7 @@ Recommended actions:
 2. Rebuild and run with conservative memory settings first (for example lower `MEM_FRACTION_STATIC` and `MAX_RUNNING_REQUESTS`), then scale up.
 3. If the issue started right after a CUDA or base-image update, pin your previously known-good image/tag instead of tracking moving `dev` tags.
 4. If startup fails with `libnvrtc.so.12` / `Could not load any common_ops library`, rebuild without Python package overrides so base-image CUDA-matched binaries are kept (default behavior in this repo now).
+5. This image now includes an internal watchdog in `entrypoint.sh`: if `/health` keeps failing after startup grace, it terminates SGLang so Docker restart policy can recover automatically. Tune with `HEALTHCHECK_MONITOR_START_GRACE`, `HEALTHCHECK_MONITOR_INTERVAL`, and `HEALTHCHECK_MONITOR_MAX_FAILURES`.
 
 ### CUDA stack mismatch quick check
 

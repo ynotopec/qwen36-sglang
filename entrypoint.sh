@@ -68,4 +68,53 @@ echo "Launching SGLang:"
 printf ' %q' "${ARGS[@]}"
 echo
 
-exec "${ARGS[@]}"
+health_url="http://127.0.0.1:${HTTP_PORT}/health"
+monitor_interval="${HEALTHCHECK_MONITOR_INTERVAL:-15}"
+max_failures="${HEALTHCHECK_MONITOR_MAX_FAILURES:-8}"
+start_grace="${HEALTHCHECK_MONITOR_START_GRACE:-900}"
+
+"${ARGS[@]}" &
+server_pid=$!
+
+cleanup() {
+  trap - INT TERM
+  if kill -0 "${server_pid}" 2>/dev/null; then
+    kill -TERM "${server_pid}" 2>/dev/null || true
+    wait "${server_pid}" || true
+  fi
+}
+trap cleanup INT TERM
+
+(
+  start_ts=$(date +%s)
+  fails=0
+  while kill -0 "${server_pid}" 2>/dev/null; do
+    now_ts=$(date +%s)
+    if (( now_ts - start_ts < start_grace )); then
+      sleep "${monitor_interval}"
+      continue
+    fi
+
+    if curl -fsS "${health_url}" >/dev/null 2>&1; then
+      fails=0
+    else
+      fails=$((fails + 1))
+      echo "[watchdog] /health failed (${fails}/${max_failures}) on ${health_url}" >&2
+      if (( fails >= max_failures )); then
+        echo "[watchdog] Health check failed repeatedly; terminating sglang pid ${server_pid} to trigger container restart." >&2
+        kill -TERM "${server_pid}" 2>/dev/null || true
+        sleep 10
+        kill -KILL "${server_pid}" 2>/dev/null || true
+        break
+      fi
+    fi
+    sleep "${monitor_interval}"
+  done
+) &
+monitor_pid=$!
+
+wait "${server_pid}"
+exit_code=$?
+kill "${monitor_pid}" 2>/dev/null || true
+wait "${monitor_pid}" 2>/dev/null || true
+exit "${exit_code}"

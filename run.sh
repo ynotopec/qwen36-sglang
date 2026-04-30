@@ -23,28 +23,42 @@ if [[ -f "${PROJECT_DIR}/.env" ]]; then
   set +a
 fi
 
-: "${MODEL_PATH:=Qwen/Qwen3.6-35B-A3B-FP8}"
-: "${SERVED_MODEL_NAME:=qwen3.6}"
-: "${TP_SIZE:=1}"
-: "${MEM_FRACTION_STATIC:=0.5}"
-: "${CONTEXT_LENGTH:=262144}"
-: "${MAX_RUNNING_REQUESTS:=8}"
-: "${MAX_QUEUED_REQUESTS:=8}"
-: "${CHUNKED_PREFILL_SIZE:=4096}"
-: "${KV_CACHE_DTYPE:=}"
-: "${ENABLE_MULTIMODAL:=1}"
-: "${ENABLE_TOOLS:=1}"
-: "${ENABLE_MTP:=1}"
+load_example_defaults() {
+  local example_file="${PROJECT_DIR}/.env.example"
+  [[ -f "${example_file}" ]] || return 0
+
+  while IFS= read -r line; do
+    [[ "${line}" =~ ^#[A-Z0-9_]+= ]] || continue
+
+    local kv="${line#\#}"
+    local var_name="${kv%%=*}"
+    local raw_value="${kv#*=}"
+
+    if [[ -z "${!var_name+x}" || -z "${!var_name}" ]]; then
+      local expanded
+      expanded=$(eval "echo \"${raw_value}\"")
+      export "${var_name}=${expanded}"
+    fi
+  done < "${example_file}"
+}
+
+load_example_defaults
+
+: "${MODEL_PATH:?MODEL_PATH must be set (via .env or .env.example).}"
+: "${SERVED_MODEL_NAME:?SERVED_MODEL_NAME must be set (via .env or .env.example).}"
+: "${TP_SIZE:?TP_SIZE must be set (via .env or .env.example).}"
+: "${MEM_FRACTION_STATIC:?MEM_FRACTION_STATIC must be set (via .env or .env.example).}"
+: "${CONTEXT_LENGTH:?CONTEXT_LENGTH must be set (via .env or .env.example).}"
+: "${MAX_RUNNING_REQUESTS:?MAX_RUNNING_REQUESTS must be set (via .env or .env.example).}"
+: "${MAX_QUEUED_REQUESTS:?MAX_QUEUED_REQUESTS must be set (via .env or .env.example).}"
+: "${CHUNKED_PREFILL_SIZE:?CHUNKED_PREFILL_SIZE must be set (via .env or .env.example).}"
+: "${HTTP_PORT:=${PORT}}"
+: "${SHM_SIZE:?SHM_SIZE must be set (via .env or .env.example).}"
+: "${GPU_DEVICE:?GPU_DEVICE must be set (via .env or .env.example).}"
+: "${RESTART_POLICY:?RESTART_POLICY must be set (via .env or .env.example).}"
 : "${HF_HOME:=${HOME}/.cache/huggingface}"
 : "${HF_HUB_CACHE:=${HF_HOME}}"
 : "${TRANSFORMERS_CACHE:=${HF_HOME}}"
-: "${HTTP_PORT:=${PORT}}"
-: "${SHM_SIZE:=16g}"
-: "${GPU_DEVICE:=all}"
-: "${SGLANG_ENABLE_SPEC_V2:=1}"
-: "${MAMBA_SCHEDULER_STRATEGY:=extra_buffer}"
-: "${RESTART_POLICY:=unless-stopped}"
-
 if [[ -z "${API_KEY:-}" ]]; then
   echo "ERROR: API_KEY is required in .env" >&2
   return 1 2>/dev/null || exit 1
