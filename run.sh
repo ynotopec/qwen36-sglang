@@ -41,8 +41,8 @@ fi
 : "${HTTP_PORT:=${PORT}}"
 : "${SHM_SIZE:=16g}"
 : "${GPU_DEVICE:=all}"
-: "${SGLANG_ENABLE_SPEC_V2:=0}"
-: "${MAMBA_SCHEDULER_STRATEGY:=no_buffer}"
+: "${SGLANG_ENABLE_SPEC_V2:=1}"
+: "${MAMBA_SCHEDULER_STRATEGY:=extra_buffer}"
 : "${RESTART_POLICY:=unless-stopped}"
 
 if [[ -z "${API_KEY:-}" ]]; then
