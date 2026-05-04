@@ -64,6 +64,10 @@ if [[ "${ENABLE_MTP:-1}" == "1" ]]; then
   )
 fi
 
+if [[ "${ENABLE_MIXED_CHUNK:-0}" == "1" ]]; then
+  ARGS+=( --enable-mixed-chunk )
+fi
+
 echo "Launching SGLang:"
 printf ' %q' "${ARGS[@]}"
 echo

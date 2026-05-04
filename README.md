@@ -37,6 +37,7 @@ Optional:
 * `HF_TOKEN` if the model download requires authentication
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
+* `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
 * `FLASHINFER_DISABLE_VERSION_CHECK=0` if you want to re-enable strict `flashinfer`/`flashinfer-jit-cache` version checks
