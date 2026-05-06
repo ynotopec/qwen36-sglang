@@ -110,6 +110,16 @@ Then increase gradually.
 * This image defaults `FLASHINFER_DISABLE_VERSION_CHECK=1` to avoid startup failures caused by transient package skew in upstream base images.
 * `run.sh` now defaults to `RESTART_POLICY=unless-stopped`, so the container auto-restarts when SGLang hangs or crashes. Set `RESTART_POLICY=no` to keep the previous one-shot `--rm` behavior.
 
+## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
+
+If startup fails with:
+
+```text
+ValueError: invalid literal for int() with base 10: ''
+```
+
+make sure `TORCHINDUCTOR_COMPILE_THREADS` is either unset/commented out or set to an integer such as `2`. `run.sh` intentionally omits the variable from `docker run` when it is empty because PyTorch treats an empty-but-present environment variable as invalid.
+
 ## Troubleshooting: `/health` returns 503 with detokenizer heartbeat timeout
 
 If logs repeatedly show messages like:
