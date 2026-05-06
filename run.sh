@@ -68,6 +68,11 @@ if [[ -z "${HF_TOKEN:-}" ]]; then
   echo "WARNING: HF_TOKEN is not set; model downloads from the Hugging Face Hub may be rate-limited." >&2
 fi
 
+if [[ -n "${TORCHINDUCTOR_COMPILE_THREADS:-}" && ! "${TORCHINDUCTOR_COMPILE_THREADS}" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: TORCHINDUCTOR_COMPILE_THREADS must be an integer when set." >&2
+  return 1 2>/dev/null || exit 1
+fi
+
 mkdir -p "${HF_HOME}"
 
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
@@ -80,6 +85,13 @@ fi
 DOCKER_RUN_CLEANUP_ARGS=(--rm)
 if [[ "${RESTART_POLICY}" != "no" ]]; then
   DOCKER_RUN_CLEANUP_ARGS=(--restart "${RESTART_POLICY}")
+fi
+
+DOCKER_OPTIONAL_ENV_ARGS=()
+if [[ -n "${TORCHINDUCTOR_COMPILE_THREADS:-}" ]]; then
+  DOCKER_OPTIONAL_ENV_ARGS+=(
+    -e TORCHINDUCTOR_COMPILE_THREADS="${TORCHINDUCTOR_COMPILE_THREADS}"
+  )
 fi
 
 echo "Starting container '${CONTAINER_NAME}' with restart policy '${RESTART_POLICY}'"
@@ -105,7 +117,7 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e SPECULATIVE_NUM_STEPS="${SPECULATIVE_NUM_STEPS:-3}" \
   -e SPECULATIVE_EAGLE_TOPK="${SPECULATIVE_EAGLE_TOPK:-1}" \
   -e SPECULATIVE_NUM_DRAFT_TOKENS="${SPECULATIVE_NUM_DRAFT_TOKENS:-4}" \
-  -e TORCHINDUCTOR_COMPILE_THREADS="${TORCHINDUCTOR_COMPILE_THREADS:-}" \
+  "${DOCKER_OPTIONAL_ENV_ARGS[@]}" \
   -e SGLANG_ENABLE_SPEC_V2="${SGLANG_ENABLE_SPEC_V2}" \
   -e MAMBA_SCHEDULER_STRATEGY="${MAMBA_SCHEDULER_STRATEGY}" \
   -e API_KEY="${API_KEY}" \
