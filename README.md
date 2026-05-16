@@ -1,13 +1,13 @@
 # sglang-qwen36
 
-Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker.
+Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker, optionally using the `z-lab/Qwen3.6-35B-A3B-DFlash` drafter for DFlash speculative decoding.
 
 ## Features
 - idempotent `install.sh`
 - `source run.sh [IP] [PORT]`
 - API token required
 - compatible H100 / DGX Spark
-- optional multimodal, tools, and MTP
+- optional multimodal, tools, MTP, and DFlash speculative decoding while keeping the FP8 target model
 
 ## Requirements
 - Docker
@@ -18,9 +18,9 @@ Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker.
 ## Install
 ```bash
 ./install.sh
-````
+```
 
-If `.env` does not exist, it is created from `.env.example`.
+If `.env` does not exist, it is created from `.env.example`. The example now sets `UPGRADE_SGLANG=1` so the image is rebuilt with the DFlash-capable SGLang git ref by default; set `UPGRADE_SGLANG=0` before `./install.sh` if you want to keep the base-image SGLang binaries.
 
 `run.sh` now treats `.env.example` as the default source of truth: any unset variable is loaded from commented defaults in `.env.example`, and `.env` only overrides what you change.
 
@@ -36,12 +36,13 @@ Optional:
 
 * `HF_TOKEN` if the model download requires authentication
 * `ADMIN_API_KEY` for admin endpoints
-* `ENABLE_MTP=1` to enable speculative decoding / MTP
+* `ENABLE_DFLASH=1` to test DFlash speculative decoding with `z-lab/Qwen3.6-35B-A3B-DFlash` as the draft model while keeping `Qwen/Qwen3.6-35B-A3B-FP8` as the target model
+* `ENABLE_MTP=1` to enable MTP/NEXTN speculative decoding when DFlash is disabled
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
 * `FLASHINFER_DISABLE_VERSION_CHECK=0` if you want to re-enable strict `flashinfer`/`flashinfer-jit-cache` version checks
-* `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
+* `UPGRADE_SGLANG=1` to install the DFlash-capable SGLang git ref (`SGLANG_GIT_REF`, default `refs/pull/20547/head`); set `UPGRADE_SGLANG=wheel` only if you want the wheel-index upgrade path instead
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
@@ -79,6 +80,31 @@ curl http://127.0.0.1:8080/v1/chat/completions \
   }'
 ```
 
+
+## DFlash + FP8
+
+The default target model remains `Qwen/Qwen3.6-35B-A3B-FP8`.  DFlash is enabled by default through `ENABLE_DFLASH=1`, with `DFLASH_DRAFT_MODEL_PATH=z-lab/Qwen3.6-35B-A3B-DFlash`, `ATTENTION_BACKEND=fa3`, and `TRUST_REMOTE_CODE=1`.  When DFlash is enabled, `entrypoint.sh` uses SGLang's `--speculative-algorithm DFLASH` path and does not add the legacy MTP/NEXTN flags.
+
+For the current DFlash implementation, keep `UPGRADE_SGLANG=1` in `.env` (the default in `.env.example`) before rebuilding and running:
+
+```bash
+./install.sh
+source ./run.sh 0.0.0.0 8080
+```
+
+Useful overrides in `.env`:
+
+```bash
+MODEL_PATH=Qwen/Qwen3.6-35B-A3B-FP8
+ENABLE_DFLASH=1
+DFLASH_DRAFT_MODEL_PATH=z-lab/Qwen3.6-35B-A3B-DFlash
+SPECULATIVE_NUM_DRAFT_TOKENS=16
+# Optional for long context / agentic workloads:
+# SPECULATIVE_DFLASH_DRAFT_WINDOW_SIZE=32768
+```
+
+Set `ENABLE_DFLASH=0` to fall back to the existing MTP/NEXTN configuration.
+
 ## Suggested defaults
 
 ### H100
@@ -103,6 +129,7 @@ Then increase gradually.
 
 * SGLang supports `--api-key`, `--admin-api-key`, `--reasoning-parser`, `--tool-call-parser`, `--enable-multimodal`, and speculative decoding flags.
 * Qwen provides SGLang recommendations for this FP8 model, including `reasoning-parser qwen3`, `tool-call-parser qwen3_coder`, and MTP-related flags.
+* DFlash uses the 0.5B `z-lab/Qwen3.6-35B-A3B-DFlash` draft model with the FP8 target model in this repo.
 * If you hit OOM, reduce `MEM_FRACTION_STATIC`, `CONTEXT_LENGTH`, or `MAX_RUNNING_REQUESTS`.
 * If you see `python -m sglang.launch_server is still supported`, update your startup command to `sglang serve`.
 * Warnings like `Unexpected error during package walk: cutlass.cute.experimental` are generally non-fatal in current SGLang/CUTLASS combinations.

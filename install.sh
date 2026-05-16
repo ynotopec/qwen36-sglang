@@ -3,11 +3,6 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="$(basename "${PROJECT_DIR}")"
-IMAGE_NAME="${IMAGE_NAME:-${PROJECT_NAME}:latest}"
-BASE_IMAGE="${BASE_IMAGE:-lmsysorg/sglang:dev-cu13}"
-UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS:-0}"
-UPGRADE_SGLANG="${UPGRADE_SGLANG:-0}"
-SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX:-https://docs.sglang.ai/whl/cu130/}"
 
 cd "${PROJECT_DIR}"
 
@@ -21,6 +16,20 @@ if [[ ! -f .env && -f .env.example ]]; then
   echo "Created .env from .env.example"
 fi
 
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
+IMAGE_NAME="${IMAGE_NAME:-${PROJECT_NAME}:latest}"
+BASE_IMAGE="${BASE_IMAGE:-lmsysorg/sglang:dev-cu13}"
+UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS:-0}"
+UPGRADE_SGLANG="${UPGRADE_SGLANG:-0}"
+SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX:-https://docs.sglang.ai/whl/cu130/}"
+SGLANG_GIT_REF="${SGLANG_GIT_REF:-refs/pull/20547/head}"
+
 chmod +x entrypoint.sh run.sh || true
 
 echo "Pulling base image: ${BASE_IMAGE}"
@@ -33,6 +42,7 @@ docker build \
   --build-arg UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS}" \
   --build-arg UPGRADE_SGLANG="${UPGRADE_SGLANG}" \
   --build-arg SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX}" \
+  --build-arg SGLANG_GIT_REF="${SGLANG_GIT_REF}" \
   -t "${IMAGE_NAME}" \
   .
 

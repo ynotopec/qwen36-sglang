@@ -4,6 +4,7 @@ FROM ${BASE_IMAGE}
 ARG UPGRADE_TRANSFORMERS=0
 ARG UPGRADE_SGLANG=0
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
+ARG SGLANG_GIT_REF=refs/pull/20547/head
 
 RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
       pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
@@ -12,6 +13,9 @@ RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
     fi
 
 RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
+      pip install --no-cache-dir --upgrade \
+        "git+https://github.com/sgl-project/sglang.git@${SGLANG_GIT_REF}#subdirectory=python"; \
+    elif [ "${UPGRADE_SGLANG}" = "wheel" ]; then \
       pip install --no-cache-dir --upgrade \
         sglang sglang[all] sglang-kernel \
         --index-url "${SGLANG_WHL_INDEX}"; \
@@ -31,11 +35,17 @@ ENV MODEL_PATH="Qwen/Qwen3.6-35B-A3B-FP8" \
     ENABLE_MULTIMODAL="1" \
     ENABLE_TOOLS="1" \
     ENABLE_MTP="1" \
+    ENABLE_DFLASH="1" \
+    DFLASH_DRAFT_MODEL_PATH="z-lab/Qwen3.6-35B-A3B-DFlash" \
+    ATTENTION_BACKEND="fa3" \
+    TRUST_REMOTE_CODE="1" \
     TOOL_SERVER="" \
     SPECULATIVE_NUM_STEPS="3" \
     SPECULATIVE_EAGLE_TOPK="1" \
-    SPECULATIVE_NUM_DRAFT_TOKENS="4" \
+    SPECULATIVE_NUM_DRAFT_TOKENS="16" \
     SGLANG_ENABLE_SPEC_V2="1" \
+    SGLANG_ENABLE_DFLASH_SPEC_V2="0" \
+    SGLANG_ENABLE_OVERLAP_PLAN_STREAM="0" \
     MAMBA_SCHEDULER_STRATEGY="extra_buffer" \
     HEALTHCHECK_MONITOR_START_GRACE="900" \
     HEALTHCHECK_MONITOR_INTERVAL="15" \

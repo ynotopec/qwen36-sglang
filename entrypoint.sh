@@ -18,6 +18,14 @@ ARGS=(
   --sleep-on-idle
 )
 
+if [[ -n "${ATTENTION_BACKEND:-}" ]]; then
+  ARGS+=( --attention-backend "${ATTENTION_BACKEND}" )
+fi
+
+if [[ "${TRUST_REMOTE_CODE:-0}" == "1" ]]; then
+  ARGS+=( --trust-remote-code )
+fi
+
 if [[ -n "${KV_CACHE_DTYPE:-}" ]]; then
   case "${KV_CACHE_DTYPE}" in
     fp8)
@@ -54,7 +62,18 @@ if [[ "${ENABLE_TOOLS:-1}" == "1" ]]; then
   fi
 fi
 
-if [[ "${ENABLE_MTP:-1}" == "1" ]]; then
+if [[ "${ENABLE_DFLASH:-0}" == "1" ]]; then
+  : "${DFLASH_DRAFT_MODEL_PATH:?DFLASH_DRAFT_MODEL_PATH must be set when ENABLE_DFLASH=1.}"
+  ARGS+=(
+    --speculative-algorithm DFLASH
+    --speculative-draft-model-path "${DFLASH_DRAFT_MODEL_PATH}"
+    --speculative-num-draft-tokens "${SPECULATIVE_NUM_DRAFT_TOKENS:-16}"
+    --mamba-scheduler-strategy "${MAMBA_SCHEDULER_STRATEGY:-extra_buffer}"
+  )
+  if [[ -n "${SPECULATIVE_DFLASH_DRAFT_WINDOW_SIZE:-}" ]]; then
+    ARGS+=( --speculative-dflash-draft-window-size "${SPECULATIVE_DFLASH_DRAFT_WINDOW_SIZE}" )
+  fi
+elif [[ "${ENABLE_MTP:-1}" == "1" ]]; then
   ARGS+=(
     --speculative-algo NEXTN
     --speculative-num-steps "${SPECULATIVE_NUM_STEPS:-3}"
