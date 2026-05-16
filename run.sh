@@ -58,7 +58,6 @@ load_example_defaults
 : "${RESTART_POLICY:?RESTART_POLICY must be set (via .env or .env.example).}"
 : "${HF_HOME:=${HOME}/.cache/huggingface}"
 : "${HF_HUB_CACHE:=${HF_HOME}}"
-: "${TRANSFORMERS_CACHE:=${HF_HOME}}"
 if [[ -z "${API_KEY:-}" ]]; then
   echo "ERROR: API_KEY is required in .env" >&2
   return 1 2>/dev/null || exit 1
@@ -91,6 +90,12 @@ DOCKER_OPTIONAL_ENV_ARGS=()
 if [[ -n "${TORCHINDUCTOR_COMPILE_THREADS:-}" ]]; then
   DOCKER_OPTIONAL_ENV_ARGS+=(
     -e TORCHINDUCTOR_COMPILE_THREADS="${TORCHINDUCTOR_COMPILE_THREADS}"
+  )
+fi
+
+if [[ -n "${TRANSFORMERS_CACHE:-}" ]]; then
+  DOCKER_OPTIONAL_ENV_ARGS+=(
+    -e TRANSFORMERS_CACHE="/app/models"
   )
 fi
 
@@ -133,6 +138,5 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e HF_TOKEN="${HF_TOKEN:-}" \
   -e HF_HOME="/app/models" \
   -e HF_HUB_CACHE="/app/models" \
-  -e TRANSFORMERS_CACHE="/app/models" \
   -v "${HF_HOME}:/app/models" \
   "${IMAGE_NAME}"

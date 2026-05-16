@@ -30,6 +30,7 @@ UPGRADE_SGLANG="${UPGRADE_SGLANG:-0}"
 SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX:-https://docs.sglang.ai/whl/cu130/}"
 SGLANG_GIT_REF="${SGLANG_GIT_REF:-refs/pull/20547/head}"
 HUGGINGFACE_HUB_SPEC="${HUGGINGFACE_HUB_SPEC:->=0.36.0,<1.0}"
+UNINSTALL_HF_KERNELS="${UNINSTALL_HF_KERNELS:-1}"
 
 chmod +x entrypoint.sh run.sh || true
 
@@ -45,6 +46,7 @@ docker build \
   --build-arg SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX}" \
   --build-arg SGLANG_GIT_REF="${SGLANG_GIT_REF}" \
   --build-arg HUGGINGFACE_HUB_SPEC="${HUGGINGFACE_HUB_SPEC}" \
+  --build-arg UNINSTALL_HF_KERNELS="${UNINSTALL_HF_KERNELS}" \
   -t "${IMAGE_NAME}" \
   .
 

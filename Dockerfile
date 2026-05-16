@@ -6,6 +6,7 @@ ARG UPGRADE_SGLANG=0
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
 ARG SGLANG_GIT_REF=refs/pull/20547/head
 ARG HUGGINGFACE_HUB_SPEC
+ARG UNINSTALL_HF_KERNELS=1
 
 RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
       pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
@@ -28,6 +29,12 @@ RUN if [ "${UPGRADE_SGLANG}" != "0" ] || [ "${UPGRADE_TRANSFORMERS}" = "1" ]; th
       pip install --no-cache-dir --upgrade "huggingface_hub${HUGGINGFACE_HUB_SPEC:->=0.36.0,<1.0}"; \
     else \
       echo "Skipping huggingface_hub compatibility upgrade."; \
+    fi
+
+RUN if [ "${UNINSTALL_HF_KERNELS}" = "1" ]; then \
+      pip uninstall -y kernels || true; \
+    else \
+      echo "Keeping optional Hugging Face kernels package."; \
     fi
 
 ENV MODEL_PATH="Qwen/Qwen3.6-35B-A3B-FP8" \
@@ -58,7 +65,6 @@ ENV MODEL_PATH="Qwen/Qwen3.6-35B-A3B-FP8" \
     HEALTHCHECK_MONITOR_INTERVAL="15" \
     HEALTHCHECK_MONITOR_MAX_FAILURES="8" \
     HF_HOME="/app/models" \
-    TRANSFORMERS_CACHE="/app/models" \
     HF_HUB_CACHE="/app/models" \
     XDG_CACHE_HOME="/app/models" \
     FLASHINFER_DISABLE_VERSION_CHECK="1" \
