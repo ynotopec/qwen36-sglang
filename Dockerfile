@@ -5,6 +5,7 @@ ARG UPGRADE_TRANSFORMERS=0
 ARG UPGRADE_SGLANG=0
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
 ARG SGLANG_GIT_REF=refs/pull/20547/head
+ARG HUGGINGFACE_HUB_SPEC
 
 RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
       pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
@@ -21,6 +22,12 @@ RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
         --index-url "${SGLANG_WHL_INDEX}"; \
     else \
       echo "Skipping sglang upgrade; using base-image prebuilt binaries."; \
+    fi
+
+RUN if [ "${UPGRADE_SGLANG}" != "0" ] || [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
+      pip install --no-cache-dir --upgrade "huggingface_hub${HUGGINGFACE_HUB_SPEC:->=0.36.0,<1.0}"; \
+    else \
+      echo "Skipping huggingface_hub compatibility upgrade."; \
     fi
 
 ENV MODEL_PATH="Qwen/Qwen3.6-35B-A3B-FP8" \

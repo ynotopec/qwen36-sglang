@@ -43,6 +43,7 @@ Optional:
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
 * `FLASHINFER_DISABLE_VERSION_CHECK=0` if you want to re-enable strict `flashinfer`/`flashinfer-jit-cache` version checks
 * `UPGRADE_SGLANG=1` to install the DFlash-capable SGLang git ref (`SGLANG_GIT_REF`, default `refs/pull/20547/head`); set `UPGRADE_SGLANG=wheel` only if you want the wheel-index upgrade path instead
+* `HUGGINGFACE_HUB_SPEC=">=0.36.0,<1.0"` to keep `huggingface_hub` new enough for the `kernels` metadata loaded by current `transformers`, while staying below the major-version boundary expected by many ML packages
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
@@ -85,7 +86,7 @@ curl http://127.0.0.1:8080/v1/chat/completions \
 
 The default target model remains `Qwen/Qwen3.6-35B-A3B-FP8`.  DFlash is enabled by default through `ENABLE_DFLASH=1`, with `DFLASH_DRAFT_MODEL_PATH=z-lab/Qwen3.6-35B-A3B-DFlash`, `ATTENTION_BACKEND=fa3`, and `TRUST_REMOTE_CODE=1`.  When DFlash is enabled, `entrypoint.sh` uses SGLang's `--speculative-algorithm DFLASH` path and does not add the legacy MTP/NEXTN flags.
 
-For the current DFlash implementation, keep `UPGRADE_SGLANG=1` in `.env` (the default in `.env.example`) before rebuilding and running:
+For the current DFlash implementation, keep `UPGRADE_SGLANG=1` in `.env` (the default in `.env.example`) before rebuilding and running. The build also upgrades `huggingface_hub` with `HUGGINGFACE_HUB_SPEC=">=0.36.0,<1.0"` to avoid the `StrictDataclassFieldValidationError` crash from stale Hub strict-dataclass validation when `transformers` imports `kernels`:
 
 ```bash
 ./install.sh
@@ -136,6 +137,24 @@ Then increase gradually.
 * `Using default W8A8 Block FP8 kernel config ... Config file not found ...` is also non-fatal: SGLang falls back to a safe default FP8 kernel. You can ignore it for first boot, or run SGLang's FP8 tuning workflow to generate a device-specific config for better throughput.
 * This image defaults `FLASHINFER_DISABLE_VERSION_CHECK=1` to avoid startup failures caused by transient package skew in upstream base images.
 * `run.sh` now defaults to `RESTART_POLICY=unless-stopped`, so the container auto-restarts when SGLang hangs or crashes. Set `RESTART_POLICY=no` to keep the previous one-shot `--rm` behavior.
+
+
+## Troubleshooting: `StrictDataclassFieldValidationError` for `import_name`
+
+If startup fails with:
+
+```text
+huggingface_hub.errors.StrictDataclassFieldValidationError: Validation error for field 'import_name'
+TypeError: Unsupported type for field 'import_name': str | None
+```
+
+it means the image has a stale `huggingface_hub` next to newer `transformers` / `kernels` metadata. Rebuild the image after this change so Docker installs `huggingface_hub>=0.36.0,<1.0` whenever `UPGRADE_SGLANG` or `UPGRADE_TRANSFORMERS` is enabled:
+
+```bash
+./install.sh
+```
+
+If you need a different Hub version for a specific upstream image, override `HUGGINGFACE_HUB_SPEC` in `.env` before rebuilding.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
