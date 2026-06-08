@@ -38,6 +38,7 @@ Optional:
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
 * `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
+* `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1` automatically changes `--chunked-prefill-size` to `-1` on DGX Spark/GB10 multimodal servers, while leaving H100 defaults unchanged
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
@@ -121,9 +122,11 @@ mamba_radix_cache.py ... donate_mamba_ping_pong_slot
 CUDA error: device-side assert triggered
 ```
 
-SGLang speculative/MTP settings are server startup flags, not per-request switches in this wrapper. This image therefore keeps `DISABLE_MTP_WITH_MULTIMODAL=0` by default so text-only requests still use MTP. If image requests trigger this crash, restart with `DISABLE_MTP_WITH_MULTIMODAL=1` or `ENABLE_MTP=0`; that image-safe profile disables MTP for the whole server, including text-only requests, until you switch it back.
+This wrapper now applies a DGX Spark-specific default workaround before SGLang starts: when `ENABLE_MULTIMODAL=1`, `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1`, and the detected GPU name contains `DGX Spark` or `GB10`, it launches SGLang with `--chunked-prefill-size -1`. SGLang documents `-1` as the way to disable chunked prefill, and this targets the failing path shown in the stack trace: `stash_chunked_request` -> `mamba_radix_cache.py` -> `donate_mamba_ping_pong_slot`.
 
-H100 and DGX Spark do not exercise identical runtime paths: H100 uses a mature Hopper CUDA/kernel stack with dedicated HBM, while DGX Spark uses a newer Blackwell-class CUDA path and tighter memory behavior. A default H100 run can therefore survive the same image prompt even though DGX Spark hits the mamba-cache/chunked-prefill assertion. Treat the workaround as deployment-specific rather than a model-level requirement: leave MTP on for H100 or text-only DGX Spark traffic, and enable the image-safe profile only on servers where image requests reproduce the crash.
+MTP remains enabled by default (`ENABLE_MTP=1`, `DISABLE_MTP_WITH_MULTIMODAL=0`), so text traffic still gets MTP unless you explicitly set `ENABLE_MTP=0` or `DISABLE_MTP_WITH_MULTIMODAL=1`. If DGX Spark image requests still fail after chunked prefill is disabled, use that stronger fallback to disable process-wide MTP as well.
+
+H100 and DGX Spark do not exercise identical runtime paths: H100 uses a mature Hopper CUDA/kernel stack with dedicated HBM, while DGX Spark uses a newer Blackwell-class CUDA path and tighter memory behavior. The automatic chunked-prefill workaround is therefore scoped to detected DGX Spark/GB10 systems and leaves H100 defaults unchanged. To force the original behavior on DGX Spark, set `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=0`.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
