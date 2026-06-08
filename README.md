@@ -37,6 +37,8 @@ Optional:
 * `HF_TOKEN` if the model download requires authentication
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
+* `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
+* `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1` automatically changes `--chunked-prefill-size` to `-1` on DGX Spark/GB10 multimodal servers, while leaving H100 defaults unchanged
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
@@ -109,6 +111,22 @@ Then increase gradually.
 * `Using default W8A8 Block FP8 kernel config ... Config file not found ...` is also non-fatal: SGLang falls back to a safe default FP8 kernel. You can ignore it for first boot, or run SGLang's FP8 tuning workflow to generate a device-specific config for better throughput.
 * This image defaults `FLASHINFER_DISABLE_VERSION_CHECK=1` to avoid startup failures caused by transient package skew in upstream base images.
 * `run.sh` now defaults to `RESTART_POLICY=unless-stopped`, so the container auto-restarts when SGLang hangs or crashes. Set `RESTART_POLICY=no` to keep the previous one-shot `--rm` behavior.
+
+## Troubleshooting: CUDA `indexSelectSmallIndex` assert on image input
+
+On DGX Spark, an image request can create a long multimodal prefill that is chunked at `CHUNKED_PREFILL_SIZE`. If speculative MTP is also enabled, current SGLang builds can fail inside the mamba cache while stashing that unfinished chunk. Logs typically include:
+
+```text
+indexSelectSmallIndex: Assertion `srcIndex < srcSelectDimSize` failed
+mamba_radix_cache.py ... donate_mamba_ping_pong_slot
+CUDA error: device-side assert triggered
+```
+
+This wrapper now applies a DGX Spark-specific default workaround before SGLang starts: when `ENABLE_MULTIMODAL=1`, `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1`, and the detected GPU name contains `DGX Spark` or `GB10`, it launches SGLang with `--chunked-prefill-size -1`. SGLang documents `-1` as the way to disable chunked prefill, and this targets the failing path shown in the stack trace: `stash_chunked_request` -> `mamba_radix_cache.py` -> `donate_mamba_ping_pong_slot`.
+
+MTP remains enabled by default (`ENABLE_MTP=1`, `DISABLE_MTP_WITH_MULTIMODAL=0`), so text traffic still gets MTP unless you explicitly set `ENABLE_MTP=0` or `DISABLE_MTP_WITH_MULTIMODAL=1`. If DGX Spark image requests still fail after chunked prefill is disabled, use that stronger fallback to disable process-wide MTP as well.
+
+H100 and DGX Spark do not exercise identical runtime paths: H100 uses a mature Hopper CUDA/kernel stack with dedicated HBM, while DGX Spark uses a newer Blackwell-class CUDA path and tighter memory behavior. The automatic chunked-prefill workaround is therefore scoped to detected DGX Spark/GB10 systems and leaves H100 defaults unchanged. To force the original behavior on DGX Spark, set `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=0`.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 

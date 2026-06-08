@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+effective_chunked_prefill_size="${CHUNKED_PREFILL_SIZE}"
+if [[ "${ENABLE_MULTIMODAL:-1}" == "1" && "${DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK:-1}" == "1" ]]; then
+  gpu_name="${GPU_NAME_OVERRIDE:-}"
+  if [[ -z "${gpu_name}" ]] && command -v nvidia-smi >/dev/null 2>&1; then
+    gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -n 1 || true)
+  fi
+
+  if [[ "${gpu_name}" =~ (DGX[[:space:]]*Spark|GB10) ]]; then
+    if [[ "${effective_chunked_prefill_size}" != "-1" ]]; then
+      echo "Detected DGX Spark/GB10 with multimodal enabled; disabling chunked prefill to avoid SGLang mamba-cache crashes on image prompts. Set DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=0 to force CHUNKED_PREFILL_SIZE=${CHUNKED_PREFILL_SIZE}." >&2
+    fi
+    effective_chunked_prefill_size="-1"
+  fi
+fi
+
 ARGS=(
   sglang serve
   --host 0.0.0.0
@@ -12,7 +27,7 @@ ARGS=(
   --context-length "${CONTEXT_LENGTH}"
   --max-running-requests "${MAX_RUNNING_REQUESTS}"
   --max-queued-requests "${MAX_QUEUED_REQUESTS}"
-  --chunked-prefill-size "${CHUNKED_PREFILL_SIZE}"
+  --chunked-prefill-size "${effective_chunked_prefill_size}"
   --reasoning-parser qwen3
   --sampling-defaults model
   --sleep-on-idle
@@ -54,7 +69,9 @@ if [[ "${ENABLE_TOOLS:-1}" == "1" ]]; then
   fi
 fi
 
-if [[ "${ENABLE_MTP:-1}" == "1" ]]; then
+if [[ "${ENABLE_MTP:-1}" == "1" && "${ENABLE_MULTIMODAL:-1}" == "1" && "${DISABLE_MTP_WITH_MULTIMODAL:-0}" == "1" ]]; then
+  echo "ENABLE_MTP=1 with ENABLE_MULTIMODAL=1 can crash SGLang mamba cache during chunked image prefill; disabling MTP. Set DISABLE_MTP_WITH_MULTIMODAL=0 to force it." >&2
+elif [[ "${ENABLE_MTP:-1}" == "1" ]]; then
   ARGS+=(
     --speculative-algo NEXTN
     --speculative-num-steps "${SPECULATIVE_NUM_STEPS:-3}"
