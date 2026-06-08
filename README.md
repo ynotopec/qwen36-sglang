@@ -37,7 +37,7 @@ Optional:
 * `HF_TOKEN` if the model download requires authentication
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
-* `DISABLE_MTP_WITH_MULTIMODAL=1` keeps MTP off for multimodal/image prompts by default to avoid current SGLang mamba-cache crashes during chunked prefill; set `0` only when validating a fixed SGLang build
+* `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
@@ -121,7 +121,7 @@ mamba_radix_cache.py ... donate_mamba_ping_pong_slot
 CUDA error: device-side assert triggered
 ```
 
-This image now defaults `DISABLE_MTP_WITH_MULTIMODAL=1`, so `entrypoint.sh` automatically skips the MTP flags whenever `ENABLE_MULTIMODAL=1`. To recover immediately, rebuild/restart with the default setting or explicitly set `ENABLE_MTP=0` in `.env`. Only set `DISABLE_MTP_WITH_MULTIMODAL=0` if you are testing an SGLang version where multimodal chunked prefill plus MTP has been fixed.
+SGLang speculative/MTP settings are server startup flags, not per-request switches in this wrapper. This image therefore keeps `DISABLE_MTP_WITH_MULTIMODAL=0` by default so text-only requests still use MTP. If image requests trigger this crash, restart with `DISABLE_MTP_WITH_MULTIMODAL=1` or `ENABLE_MTP=0`; that image-safe profile disables MTP for the whole server, including text-only requests, until you switch it back.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
