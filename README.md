@@ -123,6 +123,8 @@ CUDA error: device-side assert triggered
 
 SGLang speculative/MTP settings are server startup flags, not per-request switches in this wrapper. This image therefore keeps `DISABLE_MTP_WITH_MULTIMODAL=0` by default so text-only requests still use MTP. If image requests trigger this crash, restart with `DISABLE_MTP_WITH_MULTIMODAL=1` or `ENABLE_MTP=0`; that image-safe profile disables MTP for the whole server, including text-only requests, until you switch it back.
 
+H100 and DGX Spark do not exercise identical runtime paths: H100 uses a mature Hopper CUDA/kernel stack with dedicated HBM, while DGX Spark uses a newer Blackwell-class CUDA path and tighter memory behavior. A default H100 run can therefore survive the same image prompt even though DGX Spark hits the mamba-cache/chunked-prefill assertion. Treat the workaround as deployment-specific rather than a model-level requirement: leave MTP on for H100 or text-only DGX Spark traffic, and enable the image-safe profile only on servers where image requests reproduce the crash.
+
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
 If startup fails with:
