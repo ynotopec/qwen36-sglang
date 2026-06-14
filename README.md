@@ -38,6 +38,8 @@ Optional:
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
 * `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
+* `DGX_SPARK_OPTIMIZE=1` automatically applies a DGX Spark/GB10 profile when detected: if you kept generic defaults, it uses `MEM_FRACTION_STATIC=0.72`, `CONTEXT_LENGTH=65536`, `KV_CACHE_DTYPE=fp8_e4m3`, `ATTENTION_BACKEND=flashinfer`, prefix caching, and `MAX_NUM_BATCHED_TOKENS=16384`; explicit overrides are preserved
+* `DGX_SPARK_DISABLE_MTP=1` disables speculative MTP inside that DGX Spark/GB10 profile by default; set `0` if you want to benchmark MTP yourself
 * `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1` automatically changes `--chunked-prefill-size` to `-1` on DGX Spark/GB10 multimodal servers, while leaving H100 defaults unchanged
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `TOOL_SERVER=...` if using tool execution
@@ -92,14 +94,21 @@ curl http://127.0.0.1:8080/v1/chat/completions \
 
 ### DGX Spark
 
-Start conservatively:
+The default `DGX_SPARK_OPTIMIZE=1` profile applies these values automatically when the GPU name contains `DGX Spark` or `GB10`, as long as you have not already overridden the generic defaults:
 
 * `TP_SIZE=1`
 * `MEM_FRACTION_STATIC=0.72`
 * `CONTEXT_LENGTH=65536`
 * `MAX_RUNNING_REQUESTS=8`
+* `KV_CACHE_DTYPE=fp8_e4m3`
+* `ATTENTION_BACKEND=flashinfer`
+* `ENABLE_PREFIX_CACHING=1`
+* `MAX_NUM_BATCHED_TOKENS=16384`
+* `DGX_SPARK_DISABLE_MTP=1`
 
-Then increase gradually.
+For text-only throughput testing, try increasing `MAX_RUNNING_REQUESTS` gradually. For image-heavy traffic, keep the automatic chunked-prefill workaround enabled first, then only raise context or concurrency after stability is confirmed. Set `DGX_SPARK_OPTIMIZE=0` to keep the generic defaults on DGX Spark, or override individual knobs such as `ATTENTION_BACKEND`, `ENABLE_PREFIX_CACHING`, `MAX_NUM_BATCHED_TOKENS`, and `DGX_SPARK_DISABLE_MTP`.
+
+DGX Spark uses unified memory, so avoid over-reserving Docker shared memory; `.env.example` uses `SHM_SIZE=10g` as a safer starting point than `16g`. If you are running directly on the host and have sudo access, clearing Linux page cache before a cold benchmark can reduce UMA pressure, but this wrapper does not run privileged host commands from inside the container.
 
 ## Notes
 
@@ -122,9 +131,9 @@ mamba_radix_cache.py ... donate_mamba_ping_pong_slot
 CUDA error: device-side assert triggered
 ```
 
-This wrapper now applies a DGX Spark-specific default workaround before SGLang starts: when `ENABLE_MULTIMODAL=1`, `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1`, and the detected GPU name contains `DGX Spark` or `GB10`, it launches SGLang with `--chunked-prefill-size -1`. SGLang documents `-1` as the way to disable chunked prefill, and this targets the failing path shown in the stack trace: `stash_chunked_request` -> `mamba_radix_cache.py` -> `donate_mamba_ping_pong_slot`.
+This wrapper applies a DGX Spark-specific runtime profile before SGLang starts. First, `DGX_SPARK_OPTIMIZE=1` tightens memory-sensitive defaults on detected DGX Spark/GB10 hosts while preserving explicit overrides, including FlashInfer attention, prefix caching, FP8 KV cache, and a 16K batched-token cap. It also disables MTP in the DGX profile by default via `DGX_SPARK_DISABLE_MTP=1`; set that variable to `0` to force MTP. Second, when `ENABLE_MULTIMODAL=1`, `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1`, and the detected GPU name contains `DGX Spark` or `GB10`, it launches SGLang with `--chunked-prefill-size -1`. SGLang documents `-1` as the way to disable chunked prefill, and this targets the failing path shown in the stack trace: `stash_chunked_request` -> `mamba_radix_cache.py` -> `donate_mamba_ping_pong_slot`.
 
-MTP remains enabled by default (`ENABLE_MTP=1`, `DISABLE_MTP_WITH_MULTIMODAL=0`), so text traffic still gets MTP unless you explicitly set `ENABLE_MTP=0` or `DISABLE_MTP_WITH_MULTIMODAL=1`. If DGX Spark image requests still fail after chunked prefill is disabled, use that stronger fallback to disable process-wide MTP as well.
+Outside the DGX Spark/GB10 profile, MTP remains enabled by default (`ENABLE_MTP=1`, `DISABLE_MTP_WITH_MULTIMODAL=0`). On DGX Spark/GB10, the profile disables MTP by default because it is another unstable/high-variance path for this model; set `DGX_SPARK_DISABLE_MTP=0` to benchmark it, or set `ENABLE_MTP=0` to disable it everywhere.
 
 H100 and DGX Spark do not exercise identical runtime paths: H100 uses a mature Hopper CUDA/kernel stack with dedicated HBM, while DGX Spark uses a newer Blackwell-class CUDA path and tighter memory behavior. The automatic chunked-prefill workaround is therefore scoped to detected DGX Spark/GB10 systems and leaves H100 defaults unchanged. To force the original behavior on DGX Spark, set `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=0`.
 
