@@ -37,6 +37,7 @@ Optional:
 * `HF_TOKEN` if the model download requires authentication
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
+* `MAMBA_RADIX_CACHE_STRATEGY=extra_buffer` to tune MTP mamba radix-cache scheduling without using the deprecated SGLang scheduler flag
 * `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
 * `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1` automatically changes `--chunked-prefill-size` to `-1` on DGX Spark/GB10 multimodal servers, while leaving H100 defaults unchanged
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
