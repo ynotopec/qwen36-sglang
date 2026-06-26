@@ -77,7 +77,7 @@ elif [[ "${ENABLE_MTP:-1}" == "1" ]]; then
     --speculative-num-steps "${SPECULATIVE_NUM_STEPS:-3}"
     --speculative-eagle-topk "${SPECULATIVE_EAGLE_TOPK:-1}"
     --speculative-num-draft-tokens "${SPECULATIVE_NUM_DRAFT_TOKENS:-4}"
-    --mamba-scheduler-strategy "${MAMBA_SCHEDULER_STRATEGY:-extra_buffer}"
+    --mamba-radix-cache-strategy "${MAMBA_RADIX_CACHE_STRATEGY:-extra_buffer}"
   )
 fi
 
