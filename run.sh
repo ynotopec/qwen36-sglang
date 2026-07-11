@@ -51,7 +51,6 @@ load_example_defaults
 : "${CONTEXT_LENGTH:?CONTEXT_LENGTH must be set (via .env or .env.example).}"
 : "${MAX_RUNNING_REQUESTS:?MAX_RUNNING_REQUESTS must be set (via .env or .env.example).}"
 : "${MAX_QUEUED_REQUESTS:?MAX_QUEUED_REQUESTS must be set (via .env or .env.example).}"
-: "${CHUNKED_PREFILL_SIZE:?CHUNKED_PREFILL_SIZE must be set (via .env or .env.example).}"
 : "${HTTP_PORT:=${PORT}}"
 : "${SHM_SIZE:?SHM_SIZE must be set (via .env or .env.example).}"
 : "${GPU_DEVICE:?GPU_DEVICE must be set (via .env or .env.example).}"
@@ -94,6 +93,12 @@ if [[ -n "${TORCHINDUCTOR_COMPILE_THREADS:-}" ]]; then
   )
 fi
 
+if [[ -n "${CHUNKED_PREFILL_SIZE:-}" ]]; then
+  DOCKER_OPTIONAL_ENV_ARGS+=(
+    -e CHUNKED_PREFILL_SIZE="${CHUNKED_PREFILL_SIZE}"
+  )
+fi
+
 echo "Starting container '${CONTAINER_NAME}' with restart policy '${RESTART_POLICY}'"
 
 exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
@@ -108,7 +113,6 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e CONTEXT_LENGTH="${CONTEXT_LENGTH}" \
   -e MAX_RUNNING_REQUESTS="${MAX_RUNNING_REQUESTS}" \
   -e MAX_QUEUED_REQUESTS="${MAX_QUEUED_REQUESTS}" \
-  -e CHUNKED_PREFILL_SIZE="${CHUNKED_PREFILL_SIZE}" \
   -e KV_CACHE_DTYPE="${KV_CACHE_DTYPE}" \
   -e ENABLE_MULTIMODAL="${ENABLE_MULTIMODAL}" \
   -e ENABLE_TOOLS="${ENABLE_TOOLS}" \
