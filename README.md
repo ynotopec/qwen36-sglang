@@ -22,7 +22,7 @@ Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker.
 
 If `.env` does not exist, it is created from `.env.example`.
 
-`run.sh` now treats `.env.example` as the default source of truth: any unset variable is loaded from commented defaults in `.env.example`, and `.env` only overrides what you change.
+`install.sh` and `run.sh` now treat `.env.example` as the default source of truth: any unset variable is loaded from commented defaults in `.env.example`, and `.env` only overrides what you change. This includes `BASE_IMAGE`, so you can pin the upstream SGLang Docker image/tag in `.env` after copying it from `.env.example`.
 
 ## Configure
 
@@ -44,6 +44,7 @@ Optional:
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
 * `FLASHINFER_DISABLE_VERSION_CHECK=0` if you want to re-enable strict `flashinfer`/`flashinfer-jit-cache` version checks
+* `BASE_IMAGE=lmsysorg/sglang:dev-cu13` to select or pin the upstream SGLang Docker image/tag used by `install.sh`
 * `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
 
