@@ -30,8 +30,11 @@ ARGS=(
   --chunked-prefill-size "${effective_chunked_prefill_size}"
   --reasoning-parser qwen3
   --sampling-defaults model
-  --sleep-on-idle
 )
+
+if [[ "${ENABLE_SLEEP_ON_IDLE:-0}" == "1" ]]; then
+  ARGS+=( --sleep-on-idle )
+fi
 
 if [[ -n "${KV_CACHE_DTYPE:-}" ]]; then
   case "${KV_CACHE_DTYPE}" in
