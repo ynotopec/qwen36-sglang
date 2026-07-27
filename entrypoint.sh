@@ -91,6 +91,10 @@ if [[ "${ENABLE_MIXED_CHUNK:-0}" == "1" ]]; then
   ARGS+=( --enable-mixed-chunk )
 fi
 
+if [[ -n "${MOE_RUNNER_BACKEND:-}" ]]; then
+  ARGS+=( --moe-runner-backend "${MOE_RUNNER_BACKEND}" )
+fi
+
 echo "Launching SGLang:"
 printf ' %q' "${ARGS[@]}"
 echo

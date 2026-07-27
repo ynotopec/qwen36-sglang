@@ -38,6 +38,7 @@ Optional:
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
 * `MAMBA_RADIX_CACHE_STRATEGY=extra_buffer` to tune MTP mamba radix-cache scheduling without using the deprecated SGLang scheduler flag
+* `MOE_RUNNER_BACKEND=flashinfer_cutlass` selects the NVFP4-compatible FlashInfer MoE backend (the wrapper default); override it only when your model and SGLang build support another backend
 * `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
 * `CHUNKED_PREFILL_SIZE=4096` to pass `--chunked-prefill-size`; leave it unset to omit the SGLang flag
 * `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1` automatically changes `--chunked-prefill-size` to `-1` on DGX Spark/GB10 multimodal servers when `CHUNKED_PREFILL_SIZE` is set, while leaving H100 defaults unchanged
@@ -115,6 +116,16 @@ Then increase gradually.
 * `Using default W8A8 Block FP8 kernel config ... Config file not found ...` is also non-fatal: SGLang falls back to a safe default FP8 kernel. You can ignore it for first boot, or run SGLang's FP8 tuning workflow to generate a device-specific config for better throughput.
 * This image defaults `FLASHINFER_DISABLE_VERSION_CHECK=1` to avoid startup failures caused by transient package skew in upstream base images.
 * `run.sh` now defaults to `RESTART_POLICY=unless-stopped`, so the container auto-restarts when SGLang hangs or crashes. Set `RESTART_POLICY=no` to keep the previous one-shot `--rm` behavior.
+
+## Troubleshooting: unsupported NVFP4 MoE backend
+
+If startup fails during FlashInfer autotuning with:
+
+```text
+NotImplementedError: Unsupported moe_runner_backend for NVFP4 MoE: MoeRunnerBackend.FLASHINFER_TRTLLM
+```
+
+SGLang selected its TensorRT-LLM MoE runner, which does not implement the NVFP4 path. This wrapper explicitly passes `--moe-runner-backend flashinfer_cutlass` by default. Rebuild the image and recreate the container so the updated entrypoint is used. You can configure the value with `MOE_RUNNER_BACKEND`, but NVFP4 models should keep `flashinfer_cutlass`.
 
 ## Troubleshooting: CUDA `indexSelectSmallIndex` assert on image input
 
