@@ -31,6 +31,22 @@ ARGS=(
   --sampling-defaults model
 )
 
+if [[ "${TRUST_REMOTE_CODE:-0}" == "1" ]]; then
+  ARGS+=( --trust-remote-code )
+fi
+
+if [[ -n "${ATTENTION_BACKEND:-}" ]]; then
+  ARGS+=( --attention-backend "${ATTENTION_BACKEND}" )
+fi
+
+if [[ "${DISABLE_PREFILL_CUDA_GRAPH:-0}" == "1" ]]; then
+  ARGS+=( --disable-prefill-cuda-graph )
+fi
+
+if [[ -n "${MAMBA_FULL_MEMORY_RATIO:-}" ]]; then
+  ARGS+=( --mamba-full-memory-ratio "${MAMBA_FULL_MEMORY_RATIO}" )
+fi
+
 if [[ -n "${effective_chunked_prefill_size}" ]]; then
   ARGS+=( --chunked-prefill-size "${effective_chunked_prefill_size}" )
 fi
