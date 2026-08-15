@@ -40,6 +40,7 @@ Optional:
 * `HF_TOKEN` if the model download requires authentication
 * `ADMIN_API_KEY` for admin endpoints
 * `ENABLE_MTP=1` to enable speculative decoding / MTP
+* `SPECULATIVE_ALGORITHM=EAGLE` to select EAGLE instead of the default `NEXTN`
 * `MAMBA_RADIX_CACHE_STRATEGY=extra_buffer` to tune MTP mamba radix-cache scheduling without using the deprecated SGLang scheduler flag
 * `MOE_RUNNER_BACKEND=flashinfer_cutlass` selects the NVFP4-compatible FlashInfer MoE backend (the wrapper default); override it only when your model and SGLang build support another backend
 * `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
@@ -63,6 +64,11 @@ Hub downloads are stored under `${HOME}/.cache/huggingface/hub` and mounted as
 The optional Qwen3.8 profile is grouped at the end of `.env.example`. Copy that
 block into `.env` and remove the space after each `#`; these example lines are
 deliberately excluded from the default loader.
+
+To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile, copy the matching
+optional block from `.env.example` into `.env`. The wrapper forwards its model,
+attention backend, speculative algorithm, draft settings, and mamba cache
+strategy to SGLang.
 
 ## Run
 

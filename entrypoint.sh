@@ -95,7 +95,7 @@ if [[ "${ENABLE_MTP:-1}" == "1" && "${ENABLE_MULTIMODAL:-1}" == "1" && "${DISABL
   echo "ENABLE_MTP=1 with ENABLE_MULTIMODAL=1 can crash SGLang mamba cache during chunked image prefill; disabling MTP. Set DISABLE_MTP_WITH_MULTIMODAL=0 to force it." >&2
 elif [[ "${ENABLE_MTP:-1}" == "1" ]]; then
   ARGS+=(
-    --speculative-algo NEXTN
+    --speculative-algo "${SPECULATIVE_ALGORITHM:-NEXTN}"
     --speculative-num-steps "${SPECULATIVE_NUM_STEPS:-3}"
     --speculative-eagle-topk "${SPECULATIVE_EAGLE_TOPK:-1}"
     --speculative-num-draft-tokens "${SPECULATIVE_NUM_DRAFT_TOKENS:-4}"
