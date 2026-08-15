@@ -56,8 +56,8 @@ load_example_defaults
 : "${GPU_DEVICE:?GPU_DEVICE must be set (via .env or .env.example).}"
 : "${RESTART_POLICY:?RESTART_POLICY must be set (via .env or .env.example).}"
 : "${HF_HOME:=${HOME}/.cache/huggingface}"
-: "${HF_HUB_CACHE:=${HF_HOME}}"
-: "${TRANSFORMERS_CACHE:=${HF_HOME}}"
+: "${HF_HUB_CACHE:=${HF_HOME}/hub}"
+: "${TRANSFORMERS_CACHE:=${HF_HUB_CACHE}}"
 if [[ -z "${API_KEY:-}" ]]; then
   echo "ERROR: API_KEY is required in .env" >&2
   return 1 2>/dev/null || exit 1
@@ -72,7 +72,7 @@ if [[ -n "${TORCHINDUCTOR_COMPILE_THREADS:-}" && ! "${TORCHINDUCTOR_COMPILE_THRE
   return 1 2>/dev/null || exit 1
 fi
 
-mkdir -p "${HF_HOME}"
+mkdir -p "${HF_HUB_CACHE}"
 
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 
@@ -118,6 +118,10 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e ENABLE_TOOLS="${ENABLE_TOOLS}" \
   -e ENABLE_MTP="${ENABLE_MTP}" \
   -e ENABLE_SLEEP_ON_IDLE="${ENABLE_SLEEP_ON_IDLE:-0}" \
+  -e TRUST_REMOTE_CODE="${TRUST_REMOTE_CODE:-0}" \
+  -e ATTENTION_BACKEND="${ATTENTION_BACKEND:-}" \
+  -e DISABLE_PREFILL_CUDA_GRAPH="${DISABLE_PREFILL_CUDA_GRAPH:-0}" \
+  -e MAMBA_FULL_MEMORY_RATIO="${MAMBA_FULL_MEMORY_RATIO:-}" \
   -e DISABLE_MTP_WITH_MULTIMODAL="${DISABLE_MTP_WITH_MULTIMODAL:-0}" \
   -e DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK="${DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK:-1}" \
   -e TOOL_SERVER="${TOOL_SERVER:-}" \
@@ -133,7 +137,7 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e HTTP_PORT="${HTTP_PORT}" \
   -e HF_TOKEN="${HF_TOKEN:-}" \
   -e HF_HOME="/app/models" \
-  -e HF_HUB_CACHE="/app/models" \
-  -e TRANSFORMERS_CACHE="/app/models" \
+  -e HF_HUB_CACHE="/app/models/hub" \
+  -e TRANSFORMERS_CACHE="/app/models/hub" \
   -v "${HF_HOME}:/app/models" \
   "${IMAGE_NAME}"

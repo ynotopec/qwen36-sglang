@@ -1,6 +1,8 @@
 # sglang-qwen36
 
-Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker.
+Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker. An optional,
+dependency-free `RadixArk/Qwen3.8-27B-NVFP4` profile is documented in
+`.env.example` without changing the existing defaults.
 
 ## Features
 - idempotent `install.sh`
@@ -8,6 +10,7 @@ Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker.
 - API token required
 - compatible H100 / DGX Spark
 - optional multimodal, tools, and MTP
+- optional Qwen3.8 NVFP4 configuration using the packages from the base image
 
 ## Requirements
 - Docker
@@ -41,6 +44,7 @@ Optional:
 * `MOE_RUNNER_BACKEND=flashinfer_cutlass` selects the NVFP4-compatible FlashInfer MoE backend (the wrapper default); override it only when your model and SGLang build support another backend
 * `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
 * `CHUNKED_PREFILL_SIZE=4096` to pass `--chunked-prefill-size`; leave it unset to omit the SGLang flag
+* `ATTENTION_BACKEND=flashinfer`, `DISABLE_PREFILL_CUDA_GRAPH=1`, and `MAMBA_FULL_MEMORY_RATIO=4.59` expose the remaining Qwen3.8 launch settings
 * `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1` automatically changes `--chunked-prefill-size` to `-1` on DGX Spark/GB10 multimodal servers when `CHUNKED_PREFILL_SIZE` is set, while leaving H100 defaults unchanged
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `ENABLE_SLEEP_ON_IDLE=1` to opt in to SGLang `--sleep-on-idle` (`0` by default)
@@ -52,6 +56,13 @@ Optional:
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
+
+Hub downloads are stored under `${HOME}/.cache/huggingface/hub` and mounted as
+`/app/models/hub` in the container.
+
+The optional Qwen3.8 profile is grouped at the end of `.env.example`. Copy that
+block into `.env` and remove the space after each `#`; these example lines are
+deliberately excluded from the default loader.
 
 ## Run
 
@@ -79,7 +90,7 @@ curl http://127.0.0.1:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${API_KEY}" \
   -d '{
-    "model": "qwen3.6-35b-a3b-fp8",
+    "model": "qwen3.6",
     "messages": [
       {"role": "user", "content": "Bonjour"}
     ]
@@ -139,7 +150,7 @@ CUDA error: device-side assert triggered
 
 This wrapper now applies a DGX Spark-specific default workaround before SGLang starts: when `ENABLE_MULTIMODAL=1`, `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1`, and the detected GPU name contains `DGX Spark` or `GB10`, it launches SGLang with `--chunked-prefill-size -1`. SGLang documents `-1` as the way to disable chunked prefill, and this targets the failing path shown in the stack trace: `stash_chunked_request` -> `mamba_radix_cache.py` -> `donate_mamba_ping_pong_slot`.
 
-MTP remains enabled by default (`ENABLE_MTP=1`, `DISABLE_MTP_WITH_MULTIMODAL=0`), so text traffic still gets MTP unless you explicitly set `ENABLE_MTP=0` or `DISABLE_MTP_WITH_MULTIMODAL=1`. If DGX Spark image requests still fail after chunked prefill is disabled, use that stronger fallback to disable process-wide MTP as well.
+MTP is disabled in the Qwen3.8 profile. If you opt in with `ENABLE_MTP=1`, it remains enabled with multimodal requests unless you also set `DISABLE_MTP_WITH_MULTIMODAL=1`. If DGX Spark image requests fail after chunked prefill is disabled, use that stronger fallback to disable process-wide MTP as well.
 
 H100 and DGX Spark do not exercise identical runtime paths: H100 uses a mature Hopper CUDA/kernel stack with dedicated HBM, while DGX Spark uses a newer Blackwell-class CUDA path and tighter memory behavior. The automatic chunked-prefill workaround is therefore scoped to detected DGX Spark/GB10 systems and leaves H100 defaults unchanged. To force the original behavior on DGX Spark, set `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=0`.
 
