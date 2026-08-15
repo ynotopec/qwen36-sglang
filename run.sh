@@ -99,6 +99,12 @@ if [[ -n "${CHUNKED_PREFILL_SIZE:-}" ]]; then
   )
 fi
 
+if [[ -n "${MAX_PREFILL_TOKENS:-}" ]]; then
+  DOCKER_OPTIONAL_ENV_ARGS+=(
+    -e MAX_PREFILL_TOKENS="${MAX_PREFILL_TOKENS}"
+  )
+fi
+
 echo "Starting container '${CONTAINER_NAME}' with restart policy '${RESTART_POLICY}'"
 
 exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
