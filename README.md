@@ -62,9 +62,30 @@ If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-l
 Hub downloads are stored under `${HOME}/.cache/huggingface/hub` and mounted as
 `/app/models/hub` in the container.
 
-The optional Qwen3.8 profile is grouped at the end of `.env.example`. Copy that
-block into `.env` and remove the space after each `#`; these example lines are
-deliberately excluded from the default loader.
+To reproduce the RadixArk Qwen3.8 command with a minimal `.env`, copy its
+profile from the end of `.env.example`, set `API_KEY`, then run
+`./run.sh 0.0.0.0 30000`. The profile sets only values that differ from wrapper
+defaults (plus `SERVED_MODEL_NAME`):
+
+```dotenv
+API_KEY=replace-with-a-private-token
+MODEL_PATH=RadixArk/Qwen3.8-27B-NVFP4
+SERVED_MODEL_NAME=qwen3.8
+MEM_FRACTION_STATIC=0.95
+TRUST_REMOTE_CODE=1
+ATTENTION_BACKEND=flashinfer
+CHUNKED_PREFILL_SIZE=8192
+DISABLE_PREFILL_CUDA_GRAPH=1
+MAMBA_FULL_MEMORY_RATIO=4.59
+ENABLE_MULTIMODAL=0
+ENABLE_MTP=0
+```
+
+The spaced comments in the optional profile are deliberately excluded from the
+default loader. `ENABLE_MULTIMODAL=0` and `ENABLE_MTP=0` prevent wrapper defaults
+from adding multimodal and speculative-decoding flags that are absent from the
+original command. The reasoning and tool-call parsers are already enabled by
+the wrapper.
 
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
 `v0.5.15.post1-cu130` base image, copy the matching minimal block from
