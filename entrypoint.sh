@@ -51,6 +51,10 @@ if [[ -n "${effective_chunked_prefill_size}" ]]; then
   ARGS+=( --chunked-prefill-size "${effective_chunked_prefill_size}" )
 fi
 
+if [[ -n "${MAX_PREFILL_TOKENS:-}" ]]; then
+  ARGS+=( --max-prefill-tokens "${MAX_PREFILL_TOKENS}" )
+fi
+
 if [[ "${ENABLE_SLEEP_ON_IDLE:-0}" == "1" ]]; then
   ARGS+=( --sleep-on-idle )
 fi
