@@ -21,7 +21,7 @@ dependency-free `RadixArk/Qwen3.8-27B-NVFP4` profile is documented in
 ## Install
 ```bash
 ./install.sh
-````
+```
 
 If `.env` does not exist, it is created from `.env.example`.
 
