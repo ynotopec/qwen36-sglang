@@ -44,7 +44,7 @@ load_example_defaults() {
 load_example_defaults
 
 IMAGE_NAME="${IMAGE_NAME:-${PROJECT_NAME}:latest}"
-BASE_IMAGE="${BASE_IMAGE:-lmsysorg/sglang:dev-cu13}"
+BASE_IMAGE="${BASE_IMAGE:-lmsysorg/sglang:latest-runtime}"
 UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS:-0}"
 UPGRADE_SGLANG="${UPGRADE_SGLANG:-0}"
 SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX:-https://docs.sglang.ai/whl/cu130/}"

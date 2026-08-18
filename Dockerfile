@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=lmsysorg/sglang:dev-cu13
+ARG BASE_IMAGE=lmsysorg/sglang:latest-runtime
 FROM ${BASE_IMAGE}
 
 ARG UPGRADE_TRANSFORMERS=0
