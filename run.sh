@@ -58,8 +58,8 @@ load_example_defaults
 : "${HF_HOME:=${HOME}/.cache/huggingface}"
 : "${HF_HUB_CACHE:=${HF_HOME}/hub}"
 : "${TRANSFORMERS_CACHE:=${HF_HUB_CACHE}}"
-if [[ -z "${API_KEY:-}" ]]; then
-  echo "ERROR: API_KEY is required in .env" >&2
+if [[ -z "${API_KEY:-}" || "${API_KEY}" == "change-me" || "${API_KEY}" == "change-me-very-strong-token" ]]; then
+  echo "ERROR: API_KEY must be set to a private, non-placeholder value in .env" >&2
   return 1 2>/dev/null || exit 1
 fi
 

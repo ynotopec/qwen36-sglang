@@ -21,7 +21,7 @@ dependency-free `RadixArk/Qwen3.8-27B-NVFP4` profile is documented in
 ## Install
 ```bash
 ./install.sh
-````
+```
 
 If `.env` does not exist, it is created from `.env.example`.
 
@@ -53,7 +53,7 @@ Optional:
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
 * `FLASHINFER_DISABLE_VERSION_CHECK=0` if you want to re-enable strict `flashinfer`/`flashinfer-jit-cache` version checks
-* `BASE_IMAGE=lmsysorg/sglang:dev-cu13` to select or pin the upstream SGLang Docker image/tag used by `install.sh`
+* `BASE_IMAGE=lmsysorg/sglang:latest-runtime` to use the default stable runtime image, or set a versioned tag to pin the upstream SGLang release used by `install.sh`
 * `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
 

@@ -124,6 +124,32 @@ monitor_interval="${HEALTHCHECK_MONITOR_INTERVAL:-15}"
 max_failures="${HEALTHCHECK_MONITOR_MAX_FAILURES:-8}"
 start_grace="${HEALTHCHECK_MONITOR_START_GRACE:-900}"
 
+validate_nonnegative_integer() {
+  local name="$1"
+  local value="$2"
+  if [[ ! "${value}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: ${name} must be a non-negative integer; got '${value}'." >&2
+    exit 2
+  fi
+}
+
+validate_positive_integer() {
+  local name="$1"
+  local value="$2"
+  validate_nonnegative_integer "${name}" "${value}"
+  if (( 10#${value} == 0 )); then
+    echo "ERROR: ${name} must be greater than zero." >&2
+    exit 2
+  fi
+}
+
+validate_nonnegative_integer HEALTHCHECK_MONITOR_START_GRACE "${start_grace}"
+validate_positive_integer HEALTHCHECK_MONITOR_INTERVAL "${monitor_interval}"
+validate_positive_integer HEALTHCHECK_MONITOR_MAX_FAILURES "${max_failures}"
+start_grace=$((10#${start_grace}))
+monitor_interval=$((10#${monitor_interval}))
+max_failures=$((10#${max_failures}))
+
 "${ARGS[@]}" &
 server_pid=$!
 
@@ -164,8 +190,10 @@ trap cleanup INT TERM
 ) &
 monitor_pid=$!
 
+set +e
 wait "${server_pid}"
 exit_code=$?
+set -e
 kill "${monitor_pid}" 2>/dev/null || true
 wait "${monitor_pid}" 2>/dev/null || true
 exit "${exit_code}"
