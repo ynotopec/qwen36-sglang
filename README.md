@@ -69,6 +69,7 @@ no positional arguments:
 
 ```dotenv
 API_KEY=replace-with-a-private-token
+BASE_IMAGE=lmsysorg/sglang:dev-cu13
 MODEL_PATH=RadixArk/Qwen3.8-27B-NVFP4
 SERVED_MODEL_NAME=qwen3.8
 HTTP_PORT=30000
@@ -84,6 +85,10 @@ SPECULATIVE_ALGORITHM=DFLASH
 SPECULATIVE_DRAFT_MODEL_PATH=incoai/Qwen3.8-27B-DFlash2
 SPECULATIVE_NUM_DRAFT_TOKENS=8
 ```
+
+Run `./install.sh` after changing `BASE_IMAGE`, then start the server with
+`./run.sh`. Merely restarting a container built from `latest-runtime` does not
+replace its SGLang model registry.
 
 The spaced comments in the optional profile are deliberately excluded from the
 default loader. The Qwen3.6 defaults already provide FP8 KV cache, MTP, and the
@@ -174,6 +179,23 @@ NotImplementedError: Unsupported moe_runner_backend for NVFP4 MoE: MoeRunnerBack
 ```
 
 SGLang selected its TensorRT-LLM MoE runner, which does not implement the NVFP4 path. This wrapper explicitly passes `--moe-runner-backend flashinfer_cutlass` by default. Rebuild the image and recreate the container so the updated entrypoint is used. You can configure the value with `MOE_RUNNER_BACKEND`, but NVFP4 models should keep `flashinfer_cutlass`.
+
+## Troubleshooting: `DFlash2DraftModel` is not registered
+
+If the Qwen3.8 profile fails with:
+
+```text
+ValueError: Cannot find model module. 'DFlash2DraftModel' is not a registered model
+```
+
+the container's SGLang build predates DFlash2 model registration. This is a
+runtime compatibility error, not a missing `--trust-remote-code` flag: the
+draft model config has no Transformers `auto_map` fallback, so an older SGLang
+registry cannot load it. Keep `BASE_IMAGE=lmsysorg/sglang:dev-cu13` in the
+Qwen3.8 profile, run `./install.sh` to rebuild, and recreate the container with
+`./run.sh`. Do not set `UPGRADE_SGLANG=1` on an old stable image as a shortcut,
+because replacing its CUDA-matched wheels independently can produce an
+incoherent CUDA runtime.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
