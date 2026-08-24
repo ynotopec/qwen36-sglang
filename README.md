@@ -1,15 +1,15 @@
 # sglang-qwen36
 
-Serve `Qwen/Qwen3.6-35B-A3B-FP8` with SGLang in Docker. An optional,
+Serve `nvidia/Qwen3.6-35B-A3B-NVFP4` with SGLang in Docker. An optional,
 dependency-free `RadixArk/Qwen3.8-27B-NVFP4` profile is documented in
-`.env.example` without changing the existing defaults.
+`.env.example` as a minimal override of the Qwen3.6 defaults.
 
 ## Features
 - idempotent `install.sh`
 - `source run.sh [IP] [PORT]`
 - API token required
 - compatible H100 / DGX Spark
-- optional multimodal, tools, and MTP
+- optional tools and MTP
 - optional Qwen3.8 NVFP4 configuration using the packages from the base image
 
 ## Requirements
@@ -32,24 +32,26 @@ If `.env` does not exist, it is created from `.env.example`.
 Edit `.env` and set at least:
 
 ```bash
-API_KEY=change-me
+API_KEY=replace-with-a-private-token
 ```
+
+Quote values containing shell metacharacters, for example
+`API_KEY='a-private$key'`, because `.env` is sourced by Bash.
 
 Optional:
 
 * `HF_TOKEN` if the model download requires authentication
-* `ADMIN_API_KEY` for admin endpoints
-* `ENABLE_MTP=1` to enable speculative decoding / MTP
+* `ADMIN_API_KEY` for admin endpoints; when unset it defaults to `API_KEY`
+* `ENABLE_MTP=0` to disable speculative decoding / MTP (`1` by default)
 * `SPECULATIVE_ALGORITHM=EAGLE` to select EAGLE instead of the default `NEXTN`
 * `MAMBA_RADIX_CACHE_STRATEGY=extra_buffer` to tune MTP mamba radix-cache scheduling without using the deprecated SGLang scheduler flag
 * `MOE_RUNNER_BACKEND=flashinfer_cutlass` selects the NVFP4-compatible FlashInfer MoE backend (the wrapper default); override it only when your model and SGLang build support another backend
-* `DISABLE_MTP_WITH_MULTIMODAL=0` keeps MTP enabled by default, including text-only requests on a multimodal server; set `1` for an image-safe server profile that disables process-wide MTP
 * `CHUNKED_PREFILL_SIZE=4096` to pass `--chunked-prefill-size`; leave it unset to omit the SGLang flag
 * `MAX_PREFILL_TOKENS=8192` to pass `--max-prefill-tokens`; leave it unset to omit the SGLang flag
+* `USE_SGLANG_DEFAULTS=1` to omit the wrapper's explicit context length, request limits, and `--sampling-defaults model`
 * `ATTENTION_BACKEND=flashinfer`, `DISABLE_PREFILL_CUDA_GRAPH=1`, and `MAMBA_FULL_MEMORY_RATIO=4.59` expose the remaining Qwen3.8 launch settings
-* `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1` automatically changes `--chunked-prefill-size` to `-1` on DGX Spark/GB10 multimodal servers when `CHUNKED_PREFILL_SIZE` is set, while leaving H100 defaults unchanged
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
-* `ENABLE_SLEEP_ON_IDLE=1` to opt in to SGLang `--sleep-on-idle` (`0` by default)
+* `ENABLE_SLEEP_ON_IDLE=0` to opt out of SGLang `--sleep-on-idle` (`1` by default)
 * `TOOL_SERVER=...` if using tool execution
 * `KV_CACHE_DTYPE=...` to override KV cache precision (for example `auto`, `fp8_e4m3`, or `fp8_e5m2`)
 * `FLASHINFER_DISABLE_VERSION_CHECK=0` if you want to re-enable strict `flashinfer`/`flashinfer-jit-cache` version checks
@@ -62,30 +64,45 @@ If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-l
 Hub downloads are stored under `${HOME}/.cache/huggingface/hub` and mounted as
 `/app/models/hub` in the container.
 
-To reproduce the RadixArk Qwen3.8 command with a minimal `.env`, copy its
-profile from the end of `.env.example`, set `API_KEY`, then run
-`./run.sh 0.0.0.0 30000`. The profile sets only values that differ from wrapper
-defaults (plus `SERVED_MODEL_NAME`):
+To reproduce the RadixArk Qwen3.8 DFlash command entirely from `.env`, copy its
+profile from the end of `.env.example`, set `API_KEY`, then run `./run.sh` with
+no positional arguments:
 
 ```dotenv
 API_KEY=replace-with-a-private-token
+BASE_IMAGE=lmsysorg/sglang:dev-cu13
 MODEL_PATH=RadixArk/Qwen3.8-27B-NVFP4
 SERVED_MODEL_NAME=qwen3.8
-MEM_FRACTION_STATIC=0.95
+HTTP_PORT=30000
+MEM_FRACTION_STATIC=0.80
+USE_SGLANG_DEFAULTS=1
 TRUST_REMOTE_CODE=1
 ATTENTION_BACKEND=flashinfer
-CHUNKED_PREFILL_SIZE=8192
-DISABLE_PREFILL_CUDA_GRAPH=1
-MAMBA_FULL_MEMORY_RATIO=4.59
-ENABLE_MULTIMODAL=0
-ENABLE_MTP=0
+CHUNKED_PREFILL_SIZE=2048
+MAMBA_FULL_MEMORY_RATIO=11.01
+MAMBA_RADIX_CACHE_STRATEGY=extra_buffer_lazy
+MAMBA_SSM_DTYPE=float32
+ENABLE_SLEEP_ON_IDLE=0
+SPECULATIVE_ALGORITHM=DFLASH
+SPECULATIVE_DRAFT_MODEL_PATH=incoai/Qwen3.8-27B-DFlash2
+SPECULATIVE_NUM_DRAFT_TOKENS=8
 ```
 
+Run `./install.sh` after changing `BASE_IMAGE`, then start the server with
+`./run.sh`. Merely restarting a container built from `latest-runtime` does not
+replace its SGLang model registry.
+
 The spaced comments in the optional profile are deliberately excluded from the
-default loader. `ENABLE_MULTIMODAL=0` and `ENABLE_MTP=0` prevent wrapper defaults
-from adding multimodal and speculative-decoding flags that are absent from the
-original command. The reasoning and tool-call parsers are already enabled by
-the wrapper.
+default loader. The Qwen3.6 defaults already provide FP8 KV cache, MTP, and the
+reasoning/tool parsers, so they are intentionally absent from this minimal
+override. `ENABLE_SLEEP_ON_IDLE=0` removes the Qwen3.6 default flag that was not
+present in the supplied Qwen3.8 command. `USE_SGLANG_DEFAULTS=1` likewise omits
+the Qwen3.6 context/request tuning and lets SGLang choose those defaults.
+For `DFLASH`, the wrapper does not emit `--speculative-num-steps` or
+`--speculative-eagle-topk`, because neither option was part of the supplied
+DFlash launch profile.
+Positional arguments to `run.sh`, when supplied, still override `HOST` and
+`PUBLISH_PORT`.
 
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
 `v0.5.15.post1-cu130` base image, copy the matching minimal block from
@@ -150,7 +167,7 @@ Then increase gradually.
 
 ## Notes
 
-* SGLang supports `--api-key`, `--admin-api-key`, `--reasoning-parser`, `--tool-call-parser`, `--enable-multimodal`, and speculative decoding flags.
+* SGLang supports `--api-key`, `--admin-api-key`, `--reasoning-parser`, `--tool-call-parser`, and speculative decoding flags.
 * Qwen provides SGLang recommendations for this FP8 model, including `reasoning-parser qwen3`, `tool-call-parser qwen3_coder`, and MTP-related flags.
 * If you hit OOM, reduce `MEM_FRACTION_STATIC`, `CONTEXT_LENGTH`, or `MAX_RUNNING_REQUESTS`.
 * If you see `python -m sglang.launch_server is still supported`, update your startup command to `sglang serve`.
@@ -169,21 +186,22 @@ NotImplementedError: Unsupported moe_runner_backend for NVFP4 MoE: MoeRunnerBack
 
 SGLang selected its TensorRT-LLM MoE runner, which does not implement the NVFP4 path. This wrapper explicitly passes `--moe-runner-backend flashinfer_cutlass` by default. Rebuild the image and recreate the container so the updated entrypoint is used. You can configure the value with `MOE_RUNNER_BACKEND`, but NVFP4 models should keep `flashinfer_cutlass`.
 
-## Troubleshooting: CUDA `indexSelectSmallIndex` assert on image input
+## Troubleshooting: `DFlash2DraftModel` is not registered
 
-On DGX Spark, an image request can create a long multimodal prefill that is chunked at `CHUNKED_PREFILL_SIZE`. If speculative MTP is also enabled, current SGLang builds can fail inside the mamba cache while stashing that unfinished chunk. Logs typically include:
+If the Qwen3.8 profile fails with:
 
 ```text
-indexSelectSmallIndex: Assertion `srcIndex < srcSelectDimSize` failed
-mamba_radix_cache.py ... donate_mamba_ping_pong_slot
-CUDA error: device-side assert triggered
+ValueError: Cannot find model module. 'DFlash2DraftModel' is not a registered model
 ```
 
-This wrapper now applies a DGX Spark-specific default workaround before SGLang starts: when `ENABLE_MULTIMODAL=1`, `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=1`, and the detected GPU name contains `DGX Spark` or `GB10`, it launches SGLang with `--chunked-prefill-size -1`. SGLang documents `-1` as the way to disable chunked prefill, and this targets the failing path shown in the stack trace: `stash_chunked_request` -> `mamba_radix_cache.py` -> `donate_mamba_ping_pong_slot`.
-
-MTP is disabled in the Qwen3.8 profile. If you opt in with `ENABLE_MTP=1`, it remains enabled with multimodal requests unless you also set `DISABLE_MTP_WITH_MULTIMODAL=1`. If DGX Spark image requests fail after chunked prefill is disabled, use that stronger fallback to disable process-wide MTP as well.
-
-H100 and DGX Spark do not exercise identical runtime paths: H100 uses a mature Hopper CUDA/kernel stack with dedicated HBM, while DGX Spark uses a newer Blackwell-class CUDA path and tighter memory behavior. The automatic chunked-prefill workaround is therefore scoped to detected DGX Spark/GB10 systems and leaves H100 defaults unchanged. To force the original behavior on DGX Spark, set `DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK=0`.
+the container's SGLang build predates DFlash2 model registration. This is a
+runtime compatibility error, not a missing `--trust-remote-code` flag: the
+draft model config has no Transformers `auto_map` fallback, so an older SGLang
+registry cannot load it. Keep `BASE_IMAGE=lmsysorg/sglang:dev-cu13` in the
+Qwen3.8 profile, run `./install.sh` to rebuild, and recreate the container with
+`./run.sh`. Do not set `UPGRADE_SGLANG=1` on an old stable image as a shortcut,
+because replacing its CUDA-matched wheels independently can produce an
+incoherent CUDA runtime.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 

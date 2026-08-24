@@ -10,12 +10,6 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="$(basename "${PROJECT_DIR}")"
 
-IMAGE_NAME="${IMAGE_NAME:-${PROJECT_NAME}:latest}"
-CONTAINER_NAME="${CONTAINER_NAME:-${PROJECT_NAME}}"
-
-IP="${1:-0.0.0.0}"
-PORT="${2:-8080}"
-
 if [[ -f "${PROJECT_DIR}/.env" ]]; then
   set -a
   # shellcheck disable=SC1091
@@ -44,6 +38,12 @@ load_example_defaults() {
 
 load_example_defaults
 
+IMAGE_NAME="${IMAGE_NAME:-${PROJECT_NAME}:latest}"
+CONTAINER_NAME="${CONTAINER_NAME:-${PROJECT_NAME}}"
+IP="${1:-${HOST:-0.0.0.0}}"
+: "${HTTP_PORT:=8080}"
+PORT="${2:-${PUBLISH_PORT:-${HTTP_PORT}}}"
+
 : "${MODEL_PATH:?MODEL_PATH must be set (via .env or .env.example).}"
 : "${SERVED_MODEL_NAME:?SERVED_MODEL_NAME must be set (via .env or .env.example).}"
 : "${TP_SIZE:?TP_SIZE must be set (via .env or .env.example).}"
@@ -51,7 +51,6 @@ load_example_defaults
 : "${CONTEXT_LENGTH:?CONTEXT_LENGTH must be set (via .env or .env.example).}"
 : "${MAX_RUNNING_REQUESTS:?MAX_RUNNING_REQUESTS must be set (via .env or .env.example).}"
 : "${MAX_QUEUED_REQUESTS:?MAX_QUEUED_REQUESTS must be set (via .env or .env.example).}"
-: "${HTTP_PORT:=${PORT}}"
 : "${SHM_SIZE:?SHM_SIZE must be set (via .env or .env.example).}"
 : "${GPU_DEVICE:?GPU_DEVICE must be set (via .env or .env.example).}"
 : "${RESTART_POLICY:?RESTART_POLICY must be set (via .env or .env.example).}"
@@ -119,8 +118,8 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e CONTEXT_LENGTH="${CONTEXT_LENGTH}" \
   -e MAX_RUNNING_REQUESTS="${MAX_RUNNING_REQUESTS}" \
   -e MAX_QUEUED_REQUESTS="${MAX_QUEUED_REQUESTS}" \
+  -e USE_SGLANG_DEFAULTS="${USE_SGLANG_DEFAULTS:-0}" \
   -e KV_CACHE_DTYPE="${KV_CACHE_DTYPE}" \
-  -e ENABLE_MULTIMODAL="${ENABLE_MULTIMODAL}" \
   -e ENABLE_TOOLS="${ENABLE_TOOLS}" \
   -e ENABLE_MTP="${ENABLE_MTP}" \
   -e ENABLE_SLEEP_ON_IDLE="${ENABLE_SLEEP_ON_IDLE:-0}" \
@@ -128,19 +127,19 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e ATTENTION_BACKEND="${ATTENTION_BACKEND:-}" \
   -e DISABLE_PREFILL_CUDA_GRAPH="${DISABLE_PREFILL_CUDA_GRAPH:-0}" \
   -e MAMBA_FULL_MEMORY_RATIO="${MAMBA_FULL_MEMORY_RATIO:-}" \
-  -e DISABLE_MTP_WITH_MULTIMODAL="${DISABLE_MTP_WITH_MULTIMODAL:-0}" \
-  -e DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK="${DISABLE_CHUNKED_PREFILL_ON_DGX_SPARK:-1}" \
   -e TOOL_SERVER="${TOOL_SERVER:-}" \
   -e SPECULATIVE_ALGORITHM="${SPECULATIVE_ALGORITHM:-NEXTN}" \
+  -e SPECULATIVE_DRAFT_MODEL_PATH="${SPECULATIVE_DRAFT_MODEL_PATH:-}" \
   -e SPECULATIVE_NUM_STEPS="${SPECULATIVE_NUM_STEPS:-3}" \
   -e SPECULATIVE_EAGLE_TOPK="${SPECULATIVE_EAGLE_TOPK:-1}" \
   -e SPECULATIVE_NUM_DRAFT_TOKENS="${SPECULATIVE_NUM_DRAFT_TOKENS:-4}" \
   "${DOCKER_OPTIONAL_ENV_ARGS[@]}" \
   -e SGLANG_ENABLE_SPEC_V2="${SGLANG_ENABLE_SPEC_V2}" \
   -e MAMBA_RADIX_CACHE_STRATEGY="${MAMBA_RADIX_CACHE_STRATEGY}" \
+  -e MAMBA_SSM_DTYPE="${MAMBA_SSM_DTYPE:-}" \
   -e MOE_RUNNER_BACKEND="${MOE_RUNNER_BACKEND:-flashinfer_cutlass}" \
   -e API_KEY="${API_KEY}" \
-  -e ADMIN_API_KEY="${ADMIN_API_KEY:-}" \
+  -e ADMIN_API_KEY="${ADMIN_API_KEY:-${API_KEY}}" \
   -e HTTP_PORT="${HTTP_PORT}" \
   -e HF_TOKEN="${HF_TOKEN:-}" \
   -e HF_HOME="/app/models" \
