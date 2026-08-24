@@ -11,12 +11,17 @@ ARGS=(
   --served-model-name "${SERVED_MODEL_NAME}"
   --tp-size "${TP_SIZE}"
   --mem-fraction-static "${MEM_FRACTION_STATIC}"
-  --context-length "${CONTEXT_LENGTH}"
-  --max-running-requests "${MAX_RUNNING_REQUESTS}"
-  --max-queued-requests "${MAX_QUEUED_REQUESTS}"
   --reasoning-parser qwen3
-  --sampling-defaults model
 )
+
+if [[ "${USE_SGLANG_DEFAULTS:-0}" != "1" ]]; then
+  ARGS+=(
+    --context-length "${CONTEXT_LENGTH}"
+    --max-running-requests "${MAX_RUNNING_REQUESTS}"
+    --max-queued-requests "${MAX_QUEUED_REQUESTS}"
+    --sampling-defaults model
+  )
+fi
 
 if [[ "${TRUST_REMOTE_CODE:-0}" == "1" ]]; then
   ARGS+=( --trust-remote-code )
@@ -81,11 +86,15 @@ fi
 if [[ "${ENABLE_MTP:-1}" == "1" ]]; then
   ARGS+=(
     --speculative-algo "${SPECULATIVE_ALGORITHM:-NEXTN}"
-    --speculative-num-steps "${SPECULATIVE_NUM_STEPS:-3}"
-    --speculative-eagle-topk "${SPECULATIVE_EAGLE_TOPK:-1}"
     --speculative-num-draft-tokens "${SPECULATIVE_NUM_DRAFT_TOKENS:-4}"
     --mamba-radix-cache-strategy "${MAMBA_RADIX_CACHE_STRATEGY:-extra_buffer}"
   )
+  if [[ "${SPECULATIVE_ALGORITHM:-NEXTN}" != "DFLASH" ]]; then
+    ARGS+=(
+      --speculative-num-steps "${SPECULATIVE_NUM_STEPS:-3}"
+      --speculative-eagle-topk "${SPECULATIVE_EAGLE_TOPK:-1}"
+    )
+  fi
   if [[ -n "${SPECULATIVE_DRAFT_MODEL_PATH:-}" ]]; then
     ARGS+=( --speculative-draft-model-path "${SPECULATIVE_DRAFT_MODEL_PATH}" )
   fi

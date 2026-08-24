@@ -48,6 +48,7 @@ Optional:
 * `MOE_RUNNER_BACKEND=flashinfer_cutlass` selects the NVFP4-compatible FlashInfer MoE backend (the wrapper default); override it only when your model and SGLang build support another backend
 * `CHUNKED_PREFILL_SIZE=4096` to pass `--chunked-prefill-size`; leave it unset to omit the SGLang flag
 * `MAX_PREFILL_TOKENS=8192` to pass `--max-prefill-tokens`; leave it unset to omit the SGLang flag
+* `USE_SGLANG_DEFAULTS=1` to omit the wrapper's explicit context length, request limits, and `--sampling-defaults model`
 * `ATTENTION_BACKEND=flashinfer`, `DISABLE_PREFILL_CUDA_GRAPH=1`, and `MAMBA_FULL_MEMORY_RATIO=4.59` expose the remaining Qwen3.8 launch settings
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `ENABLE_SLEEP_ON_IDLE=0` to opt out of SGLang `--sleep-on-idle` (`1` by default)
@@ -74,6 +75,7 @@ MODEL_PATH=RadixArk/Qwen3.8-27B-NVFP4
 SERVED_MODEL_NAME=qwen3.8
 HTTP_PORT=30000
 MEM_FRACTION_STATIC=0.80
+USE_SGLANG_DEFAULTS=1
 TRUST_REMOTE_CODE=1
 ATTENTION_BACKEND=flashinfer
 CHUNKED_PREFILL_SIZE=2048
@@ -94,7 +96,11 @@ The spaced comments in the optional profile are deliberately excluded from the
 default loader. The Qwen3.6 defaults already provide FP8 KV cache, MTP, and the
 reasoning/tool parsers, so they are intentionally absent from this minimal
 override. `ENABLE_SLEEP_ON_IDLE=0` removes the Qwen3.6 default flag that was not
-present in the supplied Qwen3.8 command.
+present in the supplied Qwen3.8 command. `USE_SGLANG_DEFAULTS=1` likewise omits
+the Qwen3.6 context/request tuning and lets SGLang choose those defaults.
+For `DFLASH`, the wrapper does not emit `--speculative-num-steps` or
+`--speculative-eagle-topk`, because neither option was part of the supplied
+DFlash launch profile.
 Positional arguments to `run.sh`, when supplied, still override `HOST` and
 `PUBLISH_PORT`.
 
