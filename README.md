@@ -50,6 +50,13 @@ Optional:
 * `MAX_PREFILL_TOKENS=8192` to pass `--max-prefill-tokens`; leave it unset to omit the SGLang flag
 * `USE_SGLANG_DEFAULTS=1` to omit the wrapper's explicit context length, request limits, and `--sampling-defaults model`
 * `ATTENTION_BACKEND=flashinfer`, `DISABLE_PREFILL_CUDA_GRAPH=1`, and `MAMBA_FULL_MEMORY_RATIO=4.59` expose the remaining Qwen3.8 launch settings
+* `LINEAR_ATTN_PREFILL_BACKEND=flashinfer` and
+  `LINEAR_ATTN_DECODE_BACKEND=flashinfer` configure the linear-attention paths
+  independently, as required by the Flash-Next NVFP4 recipe
+* `REASONING_PARSER=auto` lets SGLang select the Flash-Next parser instead of
+  the wrapper's default `qwen3` parser
+* `TOOL_CALL_PARSER=auto` lets SGLang select the Flash-Next tool parser instead
+  of the wrapper's default `qwen3_coder` parser
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `ENABLE_SLEEP_ON_IDLE=0` to opt out of SGLang `--sleep-on-idle` (`1` by default)
 * `TOOL_SERVER=...` if using tool execution
@@ -58,6 +65,31 @@ Optional:
 * `BASE_IMAGE=lmsysorg/sglang:latest-runtime` to use the default stable runtime image, or set a versioned tag to pin the upstream SGLang release used by `install.sh`
 * `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
+
+When `UPGRADE_SGLANG=1`, SGLang is installed from `SGLANG_GIT_REF` in the
+upstream Git repository rather than from an older published Python release.
+The CUDA wheel repository remains an extra package index, so CUDA-specific
+dependencies can come from `SGLANG_WHL_INDEX` while ordinary dependencies such
+as `tokenizers` resolve from PyPI. Pin `SGLANG_GIT_REF` to a tested commit for a
+reproducible deployment after confirming Flash-Next works.
+When both upgrades are enabled, the image installs SGLang first and Transformers
+last. That ordering prevents SGLang's dependency resolution from replacing the
+source checkout with an older Transformers version. The Flash-Next profile
+upgrades SGLang from upstream source because the current `dev-cu13` image in the
+reported build does not yet register `Qwen4ExpForConditionalGeneration`; using
+the published SGLang release wheel produced the same missing implementation and
+mixed internal modules.
+
+The build verifies that Transformers recognizes `qwen4_exp`, makes SGLang's
+local `qwen3_asr` registration explicitly replaceable, imports the SGLang config
+package, and checks that SGLang's model registry contains
+`Qwen4ExpForConditionalGeneration`. An outdated development image therefore
+fails during the build instead of producing a container that fails at startup.
+The last check is gated by `REQUIRE_QWEN4_EXP=1` in the Flash-Next profile, so
+unrelated uses of `UPGRADE_TRANSFORMERS=1` do not require this architecture.
+The compatibility helper locates the package Python would actually import,
+rather than relying on distribution metadata that can point at a stale copy
+after replacing the SGLang installation.
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
@@ -203,6 +235,49 @@ Qwen3.8 profile, run `./install.sh` to rebuild, and recreate the container with
 because replacing its CUDA-matched wheels independently can produce an
 incoherent CUDA runtime.
 
+## Qwen3.8 Flash-Next NVFP4 on B200
+
+The official [Qwen3.8 Flash-Next cookbook][4] does provide an NVFP4 recipe for
+a single B200. Copy the matching profile from `.env.example`, set `API_KEY`,
+and rebuild before launching. The profile adds the two FlashInfer
+linear-attention backends, uses `bfloat16` for the Mamba SSM state, selects the
+automatic reasoning and tool-call parsers, and retains the documented NEXTN
+settings. It deliberately leaves `HTTP_PORT` unchanged, so the wrapper keeps
+serving on its default port `8080` rather than the cookbook example's `30000`.
+
+The cookbook comment says PLE offload is automatically enabled for BF16 on
+CUDA and disabled otherwise, so the NVFP4 profile does not add a PLE-offload
+flag.
+
+If startup still reports that `Qwen4ExpForConditionalGeneration` has no SGLang
+implementation, the locally built image predates the implementation used by
+the cookbook. Confirm that the profile's `BASE_IMAGE` is selected and rerun
+`./install.sh`; merely recreating a container from the old local image is not
+enough. Rebuild with `UPGRADE_SGLANG=1` so the wrapper installs
+`SGLANG_GIT_REF` from upstream source, not the older release wheel. Warnings
+about missing internal names such as `MultimodalDataItem` indicate a mixed
+SGLang installation and should disappear with the coherent source install.
+
+If startup instead says Transformers does not recognize `qwen4_exp`, rebuild
+with the profile's Transformers upgrade enabled. In older wrapper images the
+Transformers source checkout was installed first and then silently downgraded
+while installing SGLang. The current Dockerfile installs Transformers last and
+checks `AutoConfig.for_model("qwen4_exp")` during the build, so a successfully
+built image cannot reach the server with that specific registry omission.
+
+If startup says `'qwen3_asr' is already used by a Transformers config`, the
+container predates the registry compatibility step. Rebuild it with
+`./install.sh`. The build now changes only the exact SGLang registration to
+`exist_ok=True`, is idempotent, and fails if the upstream source no longer
+matches the expected statement; it also imports `sglang.srt.configs` before
+finishing so this collision is detected while building rather than at startup.
+
+The `torchcodec` messages immediately before this failure are unrelated audio
+warnings and are not the cause of the missing text-model implementation.
+
+Do not expose API keys in commands or diagnostic logs. Revoke the API and admin
+key shown in the failed launch and replace it before starting another container.
+
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
 If startup fails with:
@@ -243,3 +318,4 @@ This repository now avoids overriding SGLang by default; only opt-in to upgrades
 [1]: https://hub.docker.com/r/lmsysorg/sglang/tags "lmsysorg/sglang - Docker Image"
 [2]: https://github.com/sgl-project/sglang/issues/20973 "[Bug] can't load AxionML/Qwen3.5-35B-A3B-NVFP4 on fresh `lmsysorg/sglang:dev-cu13` on Nvidia DGX Spark · Issue #20973 · sgl-project/sglang · GitHub"
 [3]: https://docs.sglang.ai/advanced_features/server_arguments.html "Server Arguments — SGLang"
+[4]: https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next#hw=b200&variant=default&quant=nvfp4&strategy=low-latency&nodes=single&pleOffload=auto "Qwen3.8 Flash-Next NVFP4 on B200 — SGLang Cookbook"

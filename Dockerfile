@@ -3,20 +3,31 @@ FROM ${BASE_IMAGE}
 
 ARG UPGRADE_TRANSFORMERS=0
 ARG UPGRADE_SGLANG=0
+ARG REQUIRE_QWEN4_EXP=0
+ARG SGLANG_GIT_REF=main
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
 
-RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
-      pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
-    else \
-      echo "Skipping transformers upgrade to keep base-image CUDA stack coherent."; \
-    fi
+COPY patch_sglang_transformers_registry.py /usr/local/bin/patch-sglang-transformers-registry
 
 RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
       pip install --no-cache-dir --upgrade \
-        sglang sglang[all] sglang-kernel \
-        --index-url "${SGLANG_WHL_INDEX}"; \
+        "sglang[all] @ git+https://github.com/sgl-project/sglang.git@${SGLANG_GIT_REF}#subdirectory=python" \
+        --extra-index-url "${SGLANG_WHL_INDEX}"; \
     else \
       echo "Skipping sglang upgrade; using base-image prebuilt binaries."; \
+    fi
+
+# Install Transformers last. SGLang declares a Transformers dependency, so
+# installing SGLang afterwards can otherwise downgrade a source checkout and
+# silently remove newly registered model types such as qwen4_exp.
+RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
+      pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
+      python -c 'from transformers import AutoConfig; AutoConfig.for_model("qwen4_exp")'; \
+      python /usr/local/bin/patch-sglang-transformers-registry; \
+      python -c 'import sglang.srt.configs'; \
+      if [ "${REQUIRE_QWEN4_EXP}" = "1" ]; then python -c 'from sglang.srt.models.registry import ModelRegistry; assert "Qwen4ExpForConditionalGeneration" in ModelRegistry.models, "SGLang image does not implement Qwen4ExpForConditionalGeneration"'; fi; \
+    else \
+      echo "Skipping transformers upgrade to keep base-image CUDA stack coherent."; \
     fi
 
 ENV MODEL_PATH="nvidia/Qwen3.6-35B-A3B-NVFP4" \
@@ -30,9 +41,13 @@ ENV MODEL_PATH="nvidia/Qwen3.6-35B-A3B-NVFP4" \
     HTTP_PORT="8080" \
     KV_CACHE_DTYPE="fp8_e4m3" \
     ENABLE_TOOLS="1" \
+    TOOL_CALL_PARSER="qwen3_coder" \
     ENABLE_MTP="1" \
     TRUST_REMOTE_CODE="0" \
+    REASONING_PARSER="qwen3" \
     ATTENTION_BACKEND="" \
+    LINEAR_ATTN_PREFILL_BACKEND="" \
+    LINEAR_ATTN_DECODE_BACKEND="" \
     DISABLE_PREFILL_CUDA_GRAPH="0" \
     MAMBA_FULL_MEMORY_RATIO="" \
     ENABLE_SLEEP_ON_IDLE="1" \
