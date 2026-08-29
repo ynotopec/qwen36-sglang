@@ -104,6 +104,27 @@ DFlash launch profile.
 Positional arguments to `run.sh`, when supplied, still override `HOST` and
 `PUBLISH_PORT`.
 
+### Qwen3.8 Flash-Next (`qwen4_exp`)
+
+`RadixArk/Qwen3.8-Flash-Next-NVFP4` is an experimental checkpoint whose config
+uses `model_type=qwen4_exp`. A stable image built before that identifier was
+registered can fail during argument resolution. The command in the diagnostic
+output also omitted `--trust-remote-code`; the supplied profile enables it and
+updates the registries rather than relying on only one compatibility path.
+Copy the Flash-Next profile at the end of `.env.example` into `.env`, set a new
+private `API_KEY`, and **rebuild** before launching:
+
+```bash
+./install.sh
+./run.sh 0.0.0.0 8080
+```
+
+That profile selects the CUDA 13 development image (for the current SGLang
+model registry) and opts into the latest Transformers source build. Keep both
+settings together for this checkpoint. `SERVED_MODEL_NAME` is only the public
+API alias; naming it `qwen3.6` does not make an older runtime understand
+`qwen4_exp`.
+
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
 `v0.5.15.post1-cu130` base image, copy the matching minimal block from
 `.env.example` into `.env`, set `API_KEY`, then run `./install.sh` and
@@ -202,6 +223,20 @@ Qwen3.8 profile, run `./install.sh` to rebuild, and recreate the container with
 `./run.sh`. Do not set `UPGRADE_SGLANG=1` on an old stable image as a shortcut,
 because replacing its CUDA-matched wheels independently can produce an
 incoherent CUDA runtime.
+
+## Troubleshooting: Transformers does not recognize `qwen4_exp`
+
+If startup ends with `KeyError: 'qwen4_exp'` or says that Transformers does not
+recognize that architecture, the container was built with an older model
+registry or remote configuration loading was not enabled. Select the
+Flash-Next profile from `.env.example`, run `./install.sh`, and then recreate
+the container with `./run.sh`. Verify the build log shows
+`lmsysorg/sglang:dev-cu13` as the base image and a successful Transformers
+source installation.
+
+Do not put API keys directly in shell history or logs. If a real key was
+included in diagnostic output, revoke it and replace `API_KEY` (and
+`ADMIN_API_KEY`, if shared) before restarting the service.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
