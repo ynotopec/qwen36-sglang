@@ -108,9 +108,9 @@ Positional arguments to `run.sh`, when supplied, still override `HOST` and
 
 `RadixArk/Qwen3.8-Flash-Next-NVFP4` is an experimental checkpoint whose config
 uses `model_type=qwen4_exp`. A stable image built before that identifier was
-registered can fail during argument resolution. The command in the diagnostic
-output also omitted `--trust-remote-code`; the supplied profile enables it and
-updates the registries rather than relying on only one compatibility path.
+registered can fail during argument resolution. The original command also
+omitted `--trust-remote-code`; the supplied profile enables it and selects a
+development image containing a matched SGLang/Transformers package set.
 Copy the Flash-Next profile at the end of `.env.example` into `.env`, set a new
 private `API_KEY`, and **rebuild** before launching:
 
@@ -120,10 +120,12 @@ private `API_KEY`, and **rebuild** before launching:
 ```
 
 That profile selects the CUDA 13 development image (for the current SGLang
-model registry) and opts into the latest Transformers source build. Keep both
-settings together for this checkpoint. `SERVED_MODEL_NAME` is only the public
-API alias; naming it `qwen3.6` does not make an older runtime understand
-`qwen4_exp`.
+model registry) and explicitly keeps `UPGRADE_TRANSFORMERS=0`. Do not install
+Transformers from source on top of this image: newer Transformers versions may
+register configs such as `qwen3_asr` that the bundled SGLang version also
+registers, causing startup to fail before model loading. `SERVED_MODEL_NAME` is
+only the public API alias; naming it `qwen3.6` does not make an older runtime
+understand `qwen4_exp`.
 
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
 `v0.5.15.post1-cu130` base image, copy the matching minimal block from
@@ -231,8 +233,15 @@ recognize that architecture, the container was built with an older model
 registry or remote configuration loading was not enabled. Select the
 Flash-Next profile from `.env.example`, run `./install.sh`, and then recreate
 the container with `./run.sh`. Verify the build log shows
-`lmsysorg/sglang:dev-cu13` as the base image and a successful Transformers
-source installation.
+`lmsysorg/sglang:dev-cu13` as the base image and says the Transformers upgrade
+was skipped.
+
+If the error instead says `'qwen3_asr' is already used by a Transformers
+config`, `UPGRADE_TRANSFORMERS=1` produced an incompatible mixed package set:
+the new Transformers package and SGLang both try to register the same config.
+Set `UPGRADE_TRANSFORMERS=0` and rebuild the image. Restarting the existing
+container is insufficient because it still contains the independently upgraded
+package.
 
 Do not put API keys directly in shell history or logs. If a real key was
 included in diagnostic output, revoke it and replace `API_KEY` (and
