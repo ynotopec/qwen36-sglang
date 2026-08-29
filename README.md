@@ -55,6 +55,8 @@ Optional:
   independently, as required by the Flash-Next NVFP4 recipe
 * `REASONING_PARSER=auto` lets SGLang select the Flash-Next parser instead of
   the wrapper's default `qwen3` parser
+* `TOOL_CALL_PARSER=auto` lets SGLang select the Flash-Next tool parser instead
+  of the wrapper's default `qwen3_coder` parser
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `ENABLE_SLEEP_ON_IDLE=0` to opt out of SGLang `--sleep-on-idle` (`1` by default)
 * `TOOL_SERVER=...` if using tool execution
@@ -214,7 +216,9 @@ The official [Qwen3.8 Flash-Next cookbook][4] does provide an NVFP4 recipe for
 a single B200. Copy the matching profile from `.env.example`, set `API_KEY`,
 and rebuild before launching. The profile adds the two FlashInfer
 linear-attention backends, uses `bfloat16` for the Mamba SSM state, selects the
-automatic reasoning parser, and retains the documented NEXTN settings.
+automatic reasoning and tool-call parsers, and retains the documented NEXTN
+settings. It deliberately leaves `HTTP_PORT` unchanged, so the wrapper keeps
+serving on its default port `8080` rather than the cookbook example's `30000`.
 
 The cookbook comment says PLE offload is automatically enabled for BF16 on
 CUDA and disabled otherwise, so the NVFP4 profile does not add a PLE-offload

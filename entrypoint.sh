@@ -85,7 +85,7 @@ if [[ -n "${ADMIN_API_KEY:-}" ]]; then
 fi
 
 if [[ "${ENABLE_TOOLS:-1}" == "1" ]]; then
-  ARGS+=( --tool-call-parser qwen3_coder )
+  ARGS+=( --tool-call-parser "${TOOL_CALL_PARSER:-qwen3_coder}" )
   if [[ -n "${TOOL_SERVER:-}" ]]; then
     ARGS+=( --tool-server "${TOOL_SERVER}" )
   fi

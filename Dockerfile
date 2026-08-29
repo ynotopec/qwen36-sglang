@@ -30,6 +30,7 @@ ENV MODEL_PATH="nvidia/Qwen3.6-35B-A3B-NVFP4" \
     HTTP_PORT="8080" \
     KV_CACHE_DTYPE="fp8_e4m3" \
     ENABLE_TOOLS="1" \
+    TOOL_CALL_PARSER="qwen3_coder" \
     ENABLE_MTP="1" \
     TRUST_REMOTE_CODE="0" \
     REASONING_PARSER="qwen3" \
