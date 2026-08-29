@@ -75,7 +75,11 @@ When both upgrades are enabled, the image installs SGLang first and Transformers
 last. Otherwise SGLang's dependency resolution can replace the source checkout
 with an older Transformers version that does not recognize `qwen4_exp`. The
 build verifies that `AutoConfig` recognizes `qwen4_exp` after installation and
-fails immediately if the requested Transformers checkout still lacks it.
+fails immediately if the requested Transformers checkout still lacks it. It
+then makes SGLang's local `qwen3_asr` registration explicitly replaceable and
+imports the SGLang config package as a build-time compatibility check. This
+avoids the duplicate-name failure introduced when current Transformers and an
+SGLang build both register `qwen3_asr`.
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
@@ -249,6 +253,13 @@ Transformers source checkout was installed first and then silently downgraded
 while installing SGLang. The current Dockerfile installs Transformers last and
 checks `AutoConfig.for_model("qwen4_exp")` during the build, so a successfully
 built image cannot reach the server with that specific registry omission.
+
+If startup says `'qwen3_asr' is already used by a Transformers config`, the
+container predates the registry compatibility step. Rebuild it with
+`./install.sh`. The build now changes only the exact SGLang registration to
+`exist_ok=True`, is idempotent, and fails if the upstream source no longer
+matches the expected statement; it also imports `sglang.srt.configs` before
+finishing so this collision is detected while building rather than at startup.
 
 The `torchcodec` messages immediately before this failure are unrelated audio
 warnings and are not the cause of the missing text-model implementation.
