@@ -58,9 +58,6 @@ Optional:
 * `BASE_IMAGE=lmsysorg/sglang:latest-runtime` to use the default stable runtime image, or set a versioned tag to pin the upstream SGLang release used by `install.sh`
 * `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
-* `PATCH_TRANSFORMERS_CONFIG_COLLISIONS=1` applies the narrow `qwen3_asr`
-  registration compatibility fix required when the Flash-Next profile upgrades
-  Transformers; leave it disabled for other profiles
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
@@ -106,31 +103,6 @@ For `DFLASH`, the wrapper does not emit `--speculative-num-steps` or
 DFlash launch profile.
 Positional arguments to `run.sh`, when supplied, still override `HOST` and
 `PUBLISH_PORT`.
-
-### Qwen3.8 Flash-Next (`qwen4_exp`)
-
-`RadixArk/Qwen3.8-Flash-Next-NVFP4` is an experimental checkpoint whose config
-uses `model_type=qwen4_exp`. A stable image built before that identifier was
-registered can fail during argument resolution. The original command also
-omitted `--trust-remote-code`; the supplied profile enables it and selects a
-development image, a current Transformers checkout, and a narrow compatibility
-patch for the duplicate `qwen3_asr` registration.
-Copy the Flash-Next profile at the end of `.env.example` into `.env`, set a new
-private `API_KEY`, and **rebuild** before launching:
-
-```bash
-./install.sh
-./run.sh 0.0.0.0 8080
-```
-
-That profile selects the CUDA 13 development image and upgrades Transformers so
-`AutoConfig` recognizes `qwen4_exp`. Because that combination can make both
-Transformers and SGLang register `qwen3_asr`, it also enables a build-time shim
-that changes SGLang's local registration to `exist_ok=True`. The patch is
-deliberately opt-in and the build fails if the expected SGLang source layout has
-changed, rather than silently modifying an unrelated file. `SERVED_MODEL_NAME`
-is only the public API alias; naming it `qwen3.6` does not make an older runtime
-understand `qwen4_exp`.
 
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
 `v0.5.15.post1-cu130` base image, copy the matching minimal block from
@@ -231,27 +203,30 @@ Qwen3.8 profile, run `./install.sh` to rebuild, and recreate the container with
 because replacing its CUDA-matched wheels independently can produce an
 incoherent CUDA runtime.
 
-## Troubleshooting: Transformers does not recognize `qwen4_exp`
+## Troubleshooting: `Qwen4ExpForConditionalGeneration` has no SGLang implementation
 
-If startup ends with `KeyError: 'qwen4_exp'` or says that Transformers does not
-recognize that architecture, the container was built with an older model
-registry or remote configuration loading was not enabled. Select the
-Flash-Next profile from `.env.example`, run `./install.sh`, and then recreate
-the container with `./run.sh`. Verify the build log shows
-`lmsysorg/sglang:dev-cu13` as the base image and shows a successful Transformers
-source installation.
+`RadixArk/Qwen3.8-Flash-Next-NVFP4` declares the architecture
+`Qwen4ExpForConditionalGeneration`. If SGLang reports that this architecture
+has no SGLang implementation and that the Transformers implementation is not
+compatible, no launcher flag can make that image load the checkpoint. In
+particular, `--trust-remote-code`, upgrading Transformers, and forcing the
+Transformers model implementation do not add the missing SGLang execution
+backend.
 
-If the error instead says `'qwen3_asr' is already used by a Transformers
-config`, the new Transformers package and SGLang both tried to register the
-same config. Set both `UPGRADE_TRANSFORMERS=1` and
-`PATCH_TRANSFORMERS_CONFIG_COLLISIONS=1`, then rebuild the image. The latter
-changes only SGLang's `qwen3_asr` registration to allow an existing name.
-Restarting the existing container is insufficient because this is a build-time
-compatibility fix.
+Use the exact image, model, quantization, and command produced by the official
+[Qwen3.8 Flash-Next cookbook][4]. Do not substitute the community NVFP4
+checkpoint into a recipe generated with `quant=bf16`: quantization is part of
+the selected recipe and the linked configuration is specifically BF16. If the
+cookbook does not offer the NVFP4 checkpoint/quantization combination, that
+combination is not supported by this wrapper's current upstream SGLang image;
+wait for an upstream image that registers `Qwen4ExpForConditionalGeneration`
+and implements its NVFP4 path, or use a cookbook-supported model variant.
 
-Do not put API keys directly in shell history or logs. If a real key was
-included in diagnostic output, revoke it and replace `API_KEY` (and
-`ADMIN_API_KEY`, if shared) before restarting the service.
+The `torchcodec` messages immediately before this failure are unrelated audio
+warnings and are not the cause of the missing text-model implementation.
+
+Do not expose API keys in commands or diagnostic logs. Revoke the API and admin
+key shown in the failed launch and replace it before starting another container.
 
 ## Troubleshooting: `TORCHINDUCTOR_COMPILE_THREADS` parse errors
 
@@ -293,3 +268,4 @@ This repository now avoids overriding SGLang by default; only opt-in to upgrades
 [1]: https://hub.docker.com/r/lmsysorg/sglang/tags "lmsysorg/sglang - Docker Image"
 [2]: https://github.com/sgl-project/sglang/issues/20973 "[Bug] can't load AxionML/Qwen3.5-35B-A3B-NVFP4 on fresh `lmsysorg/sglang:dev-cu13` on Nvidia DGX Spark · Issue #20973 · sgl-project/sglang · GitHub"
 [3]: https://docs.sglang.ai/advanced_features/server_arguments.html "Server Arguments — SGLang"
+[4]: https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next#hw=h200&variant=default&quant=bf16&strategy=low-latency&nodes=single&pleOffload=auto "Qwen3.8 Flash-Next — SGLang Cookbook"
