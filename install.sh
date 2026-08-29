@@ -47,6 +47,7 @@ IMAGE_NAME="${IMAGE_NAME:-${PROJECT_NAME}:latest}"
 BASE_IMAGE="${BASE_IMAGE:-lmsysorg/sglang:latest-runtime}"
 UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS:-0}"
 UPGRADE_SGLANG="${UPGRADE_SGLANG:-0}"
+REQUIRE_QWEN4_EXP="${REQUIRE_QWEN4_EXP:-0}"
 SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX:-https://docs.sglang.ai/whl/cu130/}"
 
 chmod +x entrypoint.sh run.sh || true
@@ -60,6 +61,7 @@ docker build \
   --build-arg BASE_IMAGE="${BASE_IMAGE}" \
   --build-arg UPGRADE_TRANSFORMERS="${UPGRADE_TRANSFORMERS}" \
   --build-arg UPGRADE_SGLANG="${UPGRADE_SGLANG}" \
+  --build-arg REQUIRE_QWEN4_EXP="${REQUIRE_QWEN4_EXP}" \
   --build-arg SGLANG_WHL_INDEX="${SGLANG_WHL_INDEX}" \
   -t "${IMAGE_NAME}" \
   .

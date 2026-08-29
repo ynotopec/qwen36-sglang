@@ -3,6 +3,7 @@ FROM ${BASE_IMAGE}
 
 ARG UPGRADE_TRANSFORMERS=0
 ARG UPGRADE_SGLANG=0
+ARG REQUIRE_QWEN4_EXP=0
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
 
 COPY patch_sglang_transformers_registry.py /usr/local/bin/patch-sglang-transformers-registry
@@ -23,6 +24,7 @@ RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
       python -c 'from transformers import AutoConfig; AutoConfig.for_model("qwen4_exp")'; \
       python /usr/local/bin/patch-sglang-transformers-registry; \
       python -c 'import sglang.srt.configs'; \
+      if [ "${REQUIRE_QWEN4_EXP}" = "1" ]; then python -c 'from sglang.srt.models.registry import ModelRegistry; assert "Qwen4ExpForConditionalGeneration" in ModelRegistry.models, "SGLang image does not implement Qwen4ExpForConditionalGeneration"'; fi; \
     else \
       echo "Skipping transformers upgrade to keep base-image CUDA stack coherent."; \
     fi

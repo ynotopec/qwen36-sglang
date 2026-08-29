@@ -72,14 +72,20 @@ therefore come from `SGLANG_WHL_INDEX`, while ordinary Python dependencies such
 as `tokenizers` continue to resolve from PyPI. The custom CUDA index does not
 mirror every SGLang dependency and must not be used as pip's sole index.
 When both upgrades are enabled, the image installs SGLang first and Transformers
-last. Otherwise SGLang's dependency resolution can replace the source checkout
-with an older Transformers version that does not recognize `qwen4_exp`. The
-build verifies that `AutoConfig` recognizes `qwen4_exp` after installation and
-fails immediately if the requested Transformers checkout still lacks it. It
-then makes SGLang's local `qwen3_asr` registration explicitly replaceable and
-imports the SGLang config package as a build-time compatibility check. This
-avoids the duplicate-name failure introduced when current Transformers and an
-SGLang build both register `qwen3_asr`.
+last. That ordering prevents SGLang's dependency resolution from replacing the
+source checkout with an older Transformers version. The Flash-Next profile does
+**not** upgrade SGLang, however: installing a release wheel over the development
+image can replace its newer model registry and mix incompatible internal Python
+modules. It keeps the SGLang implementation supplied by the freshly pulled
+development image and upgrades only Transformers.
+
+The build verifies that Transformers recognizes `qwen4_exp`, makes SGLang's
+local `qwen3_asr` registration explicitly replaceable, imports the SGLang config
+package, and checks that SGLang's model registry contains
+`Qwen4ExpForConditionalGeneration`. An outdated development image therefore
+fails during the build instead of producing a container that fails at startup.
+The last check is gated by `REQUIRE_QWEN4_EXP=1` in the Flash-Next profile, so
+unrelated uses of `UPGRADE_TRANSFORMERS=1` do not require this architecture.
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
@@ -243,12 +249,12 @@ If startup still reports that `Qwen4ExpForConditionalGeneration` has no SGLang
 implementation, the locally built image predates the implementation used by
 the cookbook. Confirm that the profile's `BASE_IMAGE` is selected and rerun
 `./install.sh`; merely recreating a container from the old local image is not
-enough. Do not independently upgrade Transformers or SGLang wheels on top of
-the image with ad hoc commands, because that can create a package registry or
-CUDA ABI mismatch; use the two coordinated profile flags during the rebuild.
+enough. Keep `UPGRADE_SGLANG=0`: a pip release can replace the development
+image's newer registry, and warnings about missing internal names such as
+`MultimodalDataItem` indicate exactly this kind of mixed SGLang installation.
 
 If startup instead says Transformers does not recognize `qwen4_exp`, rebuild
-with both upgrade flags from the profile. In older wrapper images the
+with the profile's Transformers upgrade enabled. In older wrapper images the
 Transformers source checkout was installed first and then silently downgraded
 while installing SGLang. The current Dockerfile installs Transformers last and
 checks `AutoConfig.for_model("qwen4_exp")` during the build, so a successfully
