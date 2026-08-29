@@ -5,18 +5,22 @@ ARG UPGRADE_TRANSFORMERS=0
 ARG UPGRADE_SGLANG=0
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
 
-RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
-      pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
-    else \
-      echo "Skipping transformers upgrade to keep base-image CUDA stack coherent."; \
-    fi
-
 RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
       pip install --no-cache-dir --upgrade \
         "sglang[all]" sglang-kernel \
         --extra-index-url "${SGLANG_WHL_INDEX}"; \
     else \
       echo "Skipping sglang upgrade; using base-image prebuilt binaries."; \
+    fi
+
+# Install Transformers last. SGLang declares a Transformers dependency, so
+# installing SGLang afterwards can otherwise downgrade a source checkout and
+# silently remove newly registered model types such as qwen4_exp.
+RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
+      pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
+      python -c 'from transformers import AutoConfig; AutoConfig.for_model("qwen4_exp")'; \
+    else \
+      echo "Skipping transformers upgrade to keep base-image CUDA stack coherent."; \
     fi
 
 ENV MODEL_PATH="nvidia/Qwen3.6-35B-A3B-NVFP4" \

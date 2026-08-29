@@ -71,6 +71,11 @@ package index rather than the only index. CUDA-specific SGLang wheels can
 therefore come from `SGLANG_WHL_INDEX`, while ordinary Python dependencies such
 as `tokenizers` continue to resolve from PyPI. The custom CUDA index does not
 mirror every SGLang dependency and must not be used as pip's sole index.
+When both upgrades are enabled, the image installs SGLang first and Transformers
+last. Otherwise SGLang's dependency resolution can replace the source checkout
+with an older Transformers version that does not recognize `qwen4_exp`. The
+build verifies that `AutoConfig` recognizes `qwen4_exp` after installation and
+fails immediately if the requested Transformers checkout still lacks it.
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
@@ -235,7 +240,15 @@ implementation, the locally built image predates the implementation used by
 the cookbook. Confirm that the profile's `BASE_IMAGE` is selected and rerun
 `./install.sh`; merely recreating a container from the old local image is not
 enough. Do not independently upgrade Transformers or SGLang wheels on top of
-the image, because that can create a package registry or CUDA ABI mismatch.
+the image with ad hoc commands, because that can create a package registry or
+CUDA ABI mismatch; use the two coordinated profile flags during the rebuild.
+
+If startup instead says Transformers does not recognize `qwen4_exp`, rebuild
+with both upgrade flags from the profile. In older wrapper images the
+Transformers source checkout was installed first and then silently downgraded
+while installing SGLang. The current Dockerfile installs Transformers last and
+checks `AutoConfig.for_model("qwen4_exp")` during the build, so a successfully
+built image cannot reach the server with that specific registry omission.
 
 The `torchcodec` messages immediately before this failure are unrelated audio
 warnings and are not the cause of the missing text-model implementation.
