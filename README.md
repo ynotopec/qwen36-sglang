@@ -58,6 +58,9 @@ Optional:
 * `BASE_IMAGE=lmsysorg/sglang:latest-runtime` to use the default stable runtime image, or set a versioned tag to pin the upstream SGLang release used by `install.sh`
 * `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
+* `PATCH_TRANSFORMERS_CONFIG_COLLISIONS=1` applies the narrow `qwen3_asr`
+  registration compatibility fix required when the Flash-Next profile upgrades
+  Transformers; leave it disabled for other profiles
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
@@ -110,7 +113,8 @@ Positional arguments to `run.sh`, when supplied, still override `HOST` and
 uses `model_type=qwen4_exp`. A stable image built before that identifier was
 registered can fail during argument resolution. The original command also
 omitted `--trust-remote-code`; the supplied profile enables it and selects a
-development image containing a matched SGLang/Transformers package set.
+development image, a current Transformers checkout, and a narrow compatibility
+patch for the duplicate `qwen3_asr` registration.
 Copy the Flash-Next profile at the end of `.env.example` into `.env`, set a new
 private `API_KEY`, and **rebuild** before launching:
 
@@ -119,12 +123,13 @@ private `API_KEY`, and **rebuild** before launching:
 ./run.sh 0.0.0.0 8080
 ```
 
-That profile selects the CUDA 13 development image (for the current SGLang
-model registry) and explicitly keeps `UPGRADE_TRANSFORMERS=0`. Do not install
-Transformers from source on top of this image: newer Transformers versions may
-register configs such as `qwen3_asr` that the bundled SGLang version also
-registers, causing startup to fail before model loading. `SERVED_MODEL_NAME` is
-only the public API alias; naming it `qwen3.6` does not make an older runtime
+That profile selects the CUDA 13 development image and upgrades Transformers so
+`AutoConfig` recognizes `qwen4_exp`. Because that combination can make both
+Transformers and SGLang register `qwen3_asr`, it also enables a build-time shim
+that changes SGLang's local registration to `exist_ok=True`. The patch is
+deliberately opt-in and the build fails if the expected SGLang source layout has
+changed, rather than silently modifying an unrelated file. `SERVED_MODEL_NAME`
+is only the public API alias; naming it `qwen3.6` does not make an older runtime
 understand `qwen4_exp`.
 
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
@@ -233,15 +238,16 @@ recognize that architecture, the container was built with an older model
 registry or remote configuration loading was not enabled. Select the
 Flash-Next profile from `.env.example`, run `./install.sh`, and then recreate
 the container with `./run.sh`. Verify the build log shows
-`lmsysorg/sglang:dev-cu13` as the base image and says the Transformers upgrade
-was skipped.
+`lmsysorg/sglang:dev-cu13` as the base image and shows a successful Transformers
+source installation.
 
 If the error instead says `'qwen3_asr' is already used by a Transformers
-config`, `UPGRADE_TRANSFORMERS=1` produced an incompatible mixed package set:
-the new Transformers package and SGLang both try to register the same config.
-Set `UPGRADE_TRANSFORMERS=0` and rebuild the image. Restarting the existing
-container is insufficient because it still contains the independently upgraded
-package.
+config`, the new Transformers package and SGLang both tried to register the
+same config. Set both `UPGRADE_TRANSFORMERS=1` and
+`PATCH_TRANSFORMERS_CONFIG_COLLISIONS=1`, then rebuild the image. The latter
+changes only SGLang's `qwen3_asr` registration to allow an existing name.
+Restarting the existing container is insufficient because this is a build-time
+compatibility fix.
 
 Do not put API keys directly in shell history or logs. If a real key was
 included in diagnostic output, revoke it and replace `API_KEY` (and

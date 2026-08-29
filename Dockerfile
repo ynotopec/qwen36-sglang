@@ -2,6 +2,7 @@ ARG BASE_IMAGE=lmsysorg/sglang:latest-runtime
 FROM ${BASE_IMAGE}
 
 ARG UPGRADE_TRANSFORMERS=0
+ARG PATCH_TRANSFORMERS_CONFIG_COLLISIONS=0
 ARG UPGRADE_SGLANG=0
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
 
@@ -9,6 +10,16 @@ RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
       pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers.git"; \
     else \
       echo "Skipping transformers upgrade to keep base-image CUDA stack coherent."; \
+    fi
+
+# SGLang development images can temporarily carry a local qwen3_asr config
+# after Transformers has gained its own config with the same name. Allow the
+# local registration to replace the upstream entry when opting into a newer
+# Transformers checkout for qwen4_exp support.
+RUN if [ "${PATCH_TRANSFORMERS_CONFIG_COLLISIONS}" = "1" ]; then \
+      python -c 'from pathlib import Path; paths=list(Path("/sgl-workspace/sglang/python").rglob("qwen3_asr.py")); assert paths, "qwen3_asr.py not found"; old="AutoConfig.register(\"qwen3_asr\", Qwen3ASRConfig)"; new="AutoConfig.register(\"qwen3_asr\", Qwen3ASRConfig, exist_ok=True)"; changed=[]; [(changed.append(p), p.write_text(p.read_text().replace(old, new))) for p in paths if old in p.read_text()]; assert changed or any(new in p.read_text() for p in paths), "qwen3_asr registration layout changed"'; \
+    else \
+      echo "Skipping SGLang/Transformers config-collision compatibility patch."; \
     fi
 
 RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
