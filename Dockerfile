@@ -4,13 +4,14 @@ FROM ${BASE_IMAGE}
 ARG UPGRADE_TRANSFORMERS=0
 ARG UPGRADE_SGLANG=0
 ARG REQUIRE_QWEN4_EXP=0
+ARG SGLANG_GIT_REF=main
 ARG SGLANG_WHL_INDEX=https://docs.sglang.ai/whl/cu130/
 
 COPY patch_sglang_transformers_registry.py /usr/local/bin/patch-sglang-transformers-registry
 
 RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
       pip install --no-cache-dir --upgrade \
-        "sglang[all]" sglang-kernel \
+        "sglang[all] @ git+https://github.com/sgl-project/sglang.git@${SGLANG_GIT_REF}#subdirectory=python" \
         --extra-index-url "${SGLANG_WHL_INDEX}"; \
     else \
       echo "Skipping sglang upgrade; using base-image prebuilt binaries."; \

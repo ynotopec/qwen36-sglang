@@ -66,18 +66,19 @@ Optional:
 * `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
 
-When `UPGRADE_SGLANG=1`, the CUDA wheel repository is configured as an extra
-package index rather than the only index. CUDA-specific SGLang wheels can
-therefore come from `SGLANG_WHL_INDEX`, while ordinary Python dependencies such
-as `tokenizers` continue to resolve from PyPI. The custom CUDA index does not
-mirror every SGLang dependency and must not be used as pip's sole index.
+When `UPGRADE_SGLANG=1`, SGLang is installed from `SGLANG_GIT_REF` in the
+upstream Git repository rather than from an older published Python release.
+The CUDA wheel repository remains an extra package index, so CUDA-specific
+dependencies can come from `SGLANG_WHL_INDEX` while ordinary dependencies such
+as `tokenizers` resolve from PyPI. Pin `SGLANG_GIT_REF` to a tested commit for a
+reproducible deployment after confirming Flash-Next works.
 When both upgrades are enabled, the image installs SGLang first and Transformers
 last. That ordering prevents SGLang's dependency resolution from replacing the
-source checkout with an older Transformers version. The Flash-Next profile does
-**not** upgrade SGLang, however: installing a release wheel over the development
-image can replace its newer model registry and mix incompatible internal Python
-modules. It keeps the SGLang implementation supplied by the freshly pulled
-development image and upgrades only Transformers.
+source checkout with an older Transformers version. The Flash-Next profile
+upgrades SGLang from upstream source because the current `dev-cu13` image in the
+reported build does not yet register `Qwen4ExpForConditionalGeneration`; using
+the published SGLang release wheel produced the same missing implementation and
+mixed internal modules.
 
 The build verifies that Transformers recognizes `qwen4_exp`, makes SGLang's
 local `qwen3_asr` registration explicitly replaceable, imports the SGLang config
@@ -86,6 +87,9 @@ package, and checks that SGLang's model registry contains
 fails during the build instead of producing a container that fails at startup.
 The last check is gated by `REQUIRE_QWEN4_EXP=1` in the Flash-Next profile, so
 unrelated uses of `UPGRADE_TRANSFORMERS=1` do not require this architecture.
+The compatibility helper locates the package Python would actually import,
+rather than relying on distribution metadata that can point at a stale copy
+after replacing the SGLang installation.
 
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
@@ -249,9 +253,10 @@ If startup still reports that `Qwen4ExpForConditionalGeneration` has no SGLang
 implementation, the locally built image predates the implementation used by
 the cookbook. Confirm that the profile's `BASE_IMAGE` is selected and rerun
 `./install.sh`; merely recreating a container from the old local image is not
-enough. Keep `UPGRADE_SGLANG=0`: a pip release can replace the development
-image's newer registry, and warnings about missing internal names such as
-`MultimodalDataItem` indicate exactly this kind of mixed SGLang installation.
+enough. Rebuild with `UPGRADE_SGLANG=1` so the wrapper installs
+`SGLANG_GIT_REF` from upstream source, not the older release wheel. Warnings
+about missing internal names such as `MultimodalDataItem` indicate a mixed
+SGLang installation and should disappear with the coherent source install.
 
 If startup instead says Transformers does not recognize `qwen4_exp`, rebuild
 with the profile's Transformers upgrade enabled. In older wrapper images the
