@@ -13,8 +13,8 @@ RUN if [ "${UPGRADE_TRANSFORMERS}" = "1" ]; then \
 
 RUN if [ "${UPGRADE_SGLANG}" = "1" ]; then \
       pip install --no-cache-dir --upgrade \
-        sglang sglang[all] sglang-kernel \
-        --index-url "${SGLANG_WHL_INDEX}"; \
+        "sglang[all]" sglang-kernel \
+        --extra-index-url "${SGLANG_WHL_INDEX}"; \
     else \
       echo "Skipping sglang upgrade; using base-image prebuilt binaries."; \
     fi

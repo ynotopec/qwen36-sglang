@@ -66,6 +66,12 @@ Optional:
 * `UPGRADE_SGLANG=1` only if you explicitly want to replace base-image SGLang binaries (off by default for CUDA compatibility)
 * `UPGRADE_TRANSFORMERS=1` only if you explicitly want a bleeding-edge `transformers` build
 
+When `UPGRADE_SGLANG=1`, the CUDA wheel repository is configured as an extra
+package index rather than the only index. CUDA-specific SGLang wheels can
+therefore come from `SGLANG_WHL_INDEX`, while ordinary Python dependencies such
+as `tokenizers` continue to resolve from PyPI. The custom CUDA index does not
+mirror every SGLang dependency and must not be used as pip's sole index.
+
 If you omit `HF_TOKEN`, Hugging Face may repeatedly print unauthenticated/rate-limit warnings during model download.
 
 Hub downloads are stored under `${HOME}/.cache/huggingface/hub` and mounted as
