@@ -50,6 +50,11 @@ Optional:
 * `MAX_PREFILL_TOKENS=8192` to pass `--max-prefill-tokens`; leave it unset to omit the SGLang flag
 * `USE_SGLANG_DEFAULTS=1` to omit the wrapper's explicit context length, request limits, and `--sampling-defaults model`
 * `ATTENTION_BACKEND=flashinfer`, `DISABLE_PREFILL_CUDA_GRAPH=1`, and `MAMBA_FULL_MEMORY_RATIO=4.59` expose the remaining Qwen3.8 launch settings
+* `LINEAR_ATTN_PREFILL_BACKEND=flashinfer` and
+  `LINEAR_ATTN_DECODE_BACKEND=flashinfer` configure the linear-attention paths
+  independently, as required by the Flash-Next NVFP4 recipe
+* `REASONING_PARSER=auto` lets SGLang select the Flash-Next parser instead of
+  the wrapper's default `qwen3` parser
 * `ENABLE_MIXED_CHUNK=1` to enable SGLang mixed-chunk scheduling (`0` by default)
 * `ENABLE_SLEEP_ON_IDLE=0` to opt out of SGLang `--sleep-on-idle` (`1` by default)
 * `TOOL_SERVER=...` if using tool execution
@@ -203,24 +208,24 @@ Qwen3.8 profile, run `./install.sh` to rebuild, and recreate the container with
 because replacing its CUDA-matched wheels independently can produce an
 incoherent CUDA runtime.
 
-## Troubleshooting: `Qwen4ExpForConditionalGeneration` has no SGLang implementation
+## Qwen3.8 Flash-Next NVFP4 on B200
 
-`RadixArk/Qwen3.8-Flash-Next-NVFP4` declares the architecture
-`Qwen4ExpForConditionalGeneration`. If SGLang reports that this architecture
-has no SGLang implementation and that the Transformers implementation is not
-compatible, no launcher flag can make that image load the checkpoint. In
-particular, `--trust-remote-code`, upgrading Transformers, and forcing the
-Transformers model implementation do not add the missing SGLang execution
-backend.
+The official [Qwen3.8 Flash-Next cookbook][4] does provide an NVFP4 recipe for
+a single B200. Copy the matching profile from `.env.example`, set `API_KEY`,
+and rebuild before launching. The profile adds the two FlashInfer
+linear-attention backends, uses `bfloat16` for the Mamba SSM state, selects the
+automatic reasoning parser, and retains the documented NEXTN settings.
 
-Use the exact image, model, quantization, and command produced by the official
-[Qwen3.8 Flash-Next cookbook][4]. Do not substitute the community NVFP4
-checkpoint into a recipe generated with `quant=bf16`: quantization is part of
-the selected recipe and the linked configuration is specifically BF16. If the
-cookbook does not offer the NVFP4 checkpoint/quantization combination, that
-combination is not supported by this wrapper's current upstream SGLang image;
-wait for an upstream image that registers `Qwen4ExpForConditionalGeneration`
-and implements its NVFP4 path, or use a cookbook-supported model variant.
+The cookbook comment says PLE offload is automatically enabled for BF16 on
+CUDA and disabled otherwise, so the NVFP4 profile does not add a PLE-offload
+flag.
+
+If startup still reports that `Qwen4ExpForConditionalGeneration` has no SGLang
+implementation, the locally built image predates the implementation used by
+the cookbook. Confirm that the profile's `BASE_IMAGE` is selected and rerun
+`./install.sh`; merely recreating a container from the old local image is not
+enough. Do not independently upgrade Transformers or SGLang wheels on top of
+the image, because that can create a package registry or CUDA ABI mismatch.
 
 The `torchcodec` messages immediately before this failure are unrelated audio
 warnings and are not the cause of the missing text-model implementation.
@@ -268,4 +273,4 @@ This repository now avoids overriding SGLang by default; only opt-in to upgrades
 [1]: https://hub.docker.com/r/lmsysorg/sglang/tags "lmsysorg/sglang - Docker Image"
 [2]: https://github.com/sgl-project/sglang/issues/20973 "[Bug] can't load AxionML/Qwen3.5-35B-A3B-NVFP4 on fresh `lmsysorg/sglang:dev-cu13` on Nvidia DGX Spark · Issue #20973 · sgl-project/sglang · GitHub"
 [3]: https://docs.sglang.ai/advanced_features/server_arguments.html "Server Arguments — SGLang"
-[4]: https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next#hw=h200&variant=default&quant=bf16&strategy=low-latency&nodes=single&pleOffload=auto "Qwen3.8 Flash-Next — SGLang Cookbook"
+[4]: https://docs.sglang.io/cookbook/autoregressive/Qwen/Qwen3.8-Flash-Next#hw=b200&variant=default&quant=nvfp4&strategy=low-latency&nodes=single&pleOffload=auto "Qwen3.8 Flash-Next NVFP4 on B200 — SGLang Cookbook"

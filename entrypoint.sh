@@ -11,7 +11,7 @@ ARGS=(
   --served-model-name "${SERVED_MODEL_NAME}"
   --tp-size "${TP_SIZE}"
   --mem-fraction-static "${MEM_FRACTION_STATIC}"
-  --reasoning-parser qwen3
+  --reasoning-parser "${REASONING_PARSER:-qwen3}"
 )
 
 if [[ "${USE_SGLANG_DEFAULTS:-0}" != "1" ]]; then
@@ -29,6 +29,14 @@ fi
 
 if [[ -n "${ATTENTION_BACKEND:-}" ]]; then
   ARGS+=( --attention-backend "${ATTENTION_BACKEND}" )
+fi
+
+if [[ -n "${LINEAR_ATTN_PREFILL_BACKEND:-}" ]]; then
+  ARGS+=( --linear-attn-prefill-backend "${LINEAR_ATTN_PREFILL_BACKEND}" )
+fi
+
+if [[ -n "${LINEAR_ATTN_DECODE_BACKEND:-}" ]]; then
+  ARGS+=( --linear-attn-decode-backend "${LINEAR_ATTN_DECODE_BACKEND}" )
 fi
 
 if [[ "${DISABLE_PREFILL_CUDA_GRAPH:-0}" == "1" ]]; then
