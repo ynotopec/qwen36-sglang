@@ -43,7 +43,10 @@ Optional:
 * `HF_TOKEN` if the model download requires authentication
 * `ADMIN_API_KEY` for admin endpoints; when unset it defaults to `API_KEY`
 * `ENABLE_MTP=0` to disable speculative decoding / MTP (`1` by default)
+* `REASONING_PARSER=...` and `TOOL_CALL_PARSER=...` to override the default Qwen parsers
+* `LANGUAGE_MODEL_ONLY=1` to pass `--language-model-only`
 * `SPECULATIVE_ALGORITHM=EAGLE` to select EAGLE instead of the default `NEXTN`
+* `SPECULATIVE_DRAFT_MODEL_QUANTIZATION=fp8` to set the draft model quantization
 * `MAMBA_RADIX_CACHE_STRATEGY=extra_buffer` to tune MTP mamba radix-cache scheduling without using the deprecated SGLang scheduler flag
 * `MOE_RUNNER_BACKEND=flashinfer_cutlass` selects the NVFP4-compatible FlashInfer MoE backend (the wrapper default); override it only when your model and SGLang build support another backend
 * `CHUNKED_PREFILL_SIZE=4096` to pass `--chunked-prefill-size`; leave it unset to omit the SGLang flag
@@ -103,6 +106,34 @@ For `DFLASH`, the wrapper does not emit `--speculative-num-steps` or
 DFlash launch profile.
 Positional arguments to `run.sh`, when supplied, still override `HOST` and
 `PUBLISH_PORT`.
+
+The Muse Glimmer command can likewise be expressed through `.env`. Copy the
+Muse profile at the end of `.env.example`, set `API_KEY`, run `./install.sh`,
+and then run `./run.sh`. In particular, the wrapper now exposes the two Muse
+parsers, FP8 draft-model quantization, and language-model-only mode:
+
+```dotenv
+API_KEY=replace-with-a-private-token
+BASE_IMAGE=lmsysorg/sglang:dev-cu13
+MODEL_PATH=RadixArk/Muse-Glimmer-NVFP4
+SERVED_MODEL_NAME=muse-glimmer
+MEM_FRACTION_STATIC=0.38
+USE_SGLANG_DEFAULTS=1
+REASONING_PARSER=muse
+TOOL_CALL_PARSER=muse
+ENABLE_SLEEP_ON_IDLE=0
+SPECULATIVE_ALGORITHM=DFLASH
+SPECULATIVE_DRAFT_MODEL_PATH=meta-models/Muse-Glimmer-30B-assistant
+SPECULATIVE_DRAFT_MODEL_QUANTIZATION=fp8
+KV_CACHE_DTYPE=fp8_e4m3
+LANGUAGE_MODEL_ONLY=1
+```
+
+The managed launch still adds operational arguments such as the bind address,
+port, served model name, API keys, and tensor-parallel size. As with the Qwen3.8
+DFlash profile, use an SGLang image that contains DFlash and the relevant model
+registrations; the example selects the CUDA 13 development image for that
+reason.
 
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
 `v0.5.15.post1-cu130` base image, copy the matching minimal block from

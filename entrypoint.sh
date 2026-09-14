@@ -11,7 +11,7 @@ ARGS=(
   --served-model-name "${SERVED_MODEL_NAME}"
   --tp-size "${TP_SIZE}"
   --mem-fraction-static "${MEM_FRACTION_STATIC}"
-  --reasoning-parser qwen3
+  --reasoning-parser "${REASONING_PARSER:-qwen3}"
 )
 
 if [[ "${USE_SGLANG_DEFAULTS:-0}" != "1" ]]; then
@@ -77,7 +77,7 @@ if [[ -n "${ADMIN_API_KEY:-}" ]]; then
 fi
 
 if [[ "${ENABLE_TOOLS:-1}" == "1" ]]; then
-  ARGS+=( --tool-call-parser qwen3_coder )
+  ARGS+=( --tool-call-parser "${TOOL_CALL_PARSER:-qwen3_coder}" )
   if [[ -n "${TOOL_SERVER:-}" ]]; then
     ARGS+=( --tool-server "${TOOL_SERVER}" )
   fi
@@ -98,6 +98,13 @@ if [[ "${ENABLE_MTP:-1}" == "1" ]]; then
   if [[ -n "${SPECULATIVE_DRAFT_MODEL_PATH:-}" ]]; then
     ARGS+=( --speculative-draft-model-path "${SPECULATIVE_DRAFT_MODEL_PATH}" )
   fi
+  if [[ -n "${SPECULATIVE_DRAFT_MODEL_QUANTIZATION:-}" ]]; then
+    ARGS+=( --speculative-draft-model-quantization "${SPECULATIVE_DRAFT_MODEL_QUANTIZATION}" )
+  fi
+fi
+
+if [[ "${LANGUAGE_MODEL_ONLY:-0}" == "1" ]]; then
+  ARGS+=( --language-model-only )
 fi
 
 if [[ -n "${MAMBA_SSM_DTYPE:-}" ]]; then
