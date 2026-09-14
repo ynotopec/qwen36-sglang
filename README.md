@@ -48,6 +48,7 @@ Optional:
 * `SPECULATIVE_ALGORITHM=EAGLE` to select EAGLE instead of the default `NEXTN`
 * `SPECULATIVE_DRAFT_MODEL_QUANTIZATION=fp8` to set the draft model quantization
 * `MAMBA_RADIX_CACHE_STRATEGY=extra_buffer` to tune MTP mamba radix-cache scheduling without using the deprecated SGLang scheduler flag
+* `ENABLE_MAMBA_RADIX_CACHE=0` to omit that scheduler flag for DFlash models which do not initialize its Mamba tracking buffers
 * `MOE_RUNNER_BACKEND=flashinfer_cutlass` selects the NVFP4-compatible FlashInfer MoE backend (the wrapper default); override it only when your model and SGLang build support another backend
 * `CHUNKED_PREFILL_SIZE=4096` to pass `--chunked-prefill-size`; leave it unset to omit the SGLang flag
 * `MAX_PREFILL_TOKENS=8192` to pass `--max-prefill-tokens`; leave it unset to omit the SGLang flag
@@ -122,6 +123,7 @@ USE_SGLANG_DEFAULTS=1
 REASONING_PARSER=muse
 TOOL_CALL_PARSER=muse
 ENABLE_SLEEP_ON_IDLE=0
+ENABLE_MAMBA_RADIX_CACHE=0
 SPECULATIVE_ALGORITHM=DFLASH
 SPECULATIVE_DRAFT_MODEL_PATH=meta-models/Muse-Glimmer-30B-assistant
 SPECULATIVE_DRAFT_MODEL_QUANTIZATION=fp8
@@ -134,6 +136,12 @@ port, served model name, API keys, and tensor-parallel size. As with the Qwen3.8
 DFlash profile, use an SGLang image that contains DFlash and the relevant model
 registrations; the example selects the CUDA 13 development image for that
 reason.
+
+The Muse profile deliberately disables the wrapper's Mamba radix-cache flag.
+Enabling it for this target/draft pair can route requests through SGLang's
+Mamba radix-cache v2 preparation even though its ping-pong tracking buffer was
+not initialized, causing the scheduler to fail on the first request with
+`TypeError: 'NoneType' object is not subscriptable`.
 
 To reproduce the NVIDIA Qwen3.6 NVFP4/EAGLE launch profile with the pinned
 `v0.5.15.post1-cu130` base image, copy the matching minimal block from

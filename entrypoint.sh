@@ -87,8 +87,10 @@ if [[ "${ENABLE_MTP:-1}" == "1" ]]; then
   ARGS+=(
     --speculative-algo "${SPECULATIVE_ALGORITHM:-NEXTN}"
     --speculative-num-draft-tokens "${SPECULATIVE_NUM_DRAFT_TOKENS:-4}"
-    --mamba-radix-cache-strategy "${MAMBA_RADIX_CACHE_STRATEGY:-extra_buffer}"
   )
+  if [[ "${ENABLE_MAMBA_RADIX_CACHE:-1}" == "1" ]]; then
+    ARGS+=( --mamba-radix-cache-strategy "${MAMBA_RADIX_CACHE_STRATEGY:-extra_buffer}" )
+  fi
   if [[ "${SPECULATIVE_ALGORITHM:-NEXTN}" != "DFLASH" ]]; then
     ARGS+=(
       --speculative-num-steps "${SPECULATIVE_NUM_STEPS:-3}"
