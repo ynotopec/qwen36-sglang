@@ -47,6 +47,28 @@ if [[ -n "${MAX_PREFILL_TOKENS:-}" ]]; then
   ARGS+=( --max-prefill-tokens "${MAX_PREFILL_TOKENS}" )
 fi
 
+if [[ -n "${FP4_GEMM_BACKEND:-}" ]]; then
+  ARGS+=( --fp4-gemm-backend "${FP4_GEMM_BACKEND}" )
+fi
+
+if [[ -n "${PAGE_SIZE:-}" ]]; then
+  ARGS+=( --page-size "${PAGE_SIZE}" )
+fi
+
+if [[ -n "${MAX_MAMBA_CACHE_SIZE:-}" ]]; then
+  ARGS+=( --max-mamba-cache-size "${MAX_MAMBA_CACHE_SIZE}" )
+fi
+
+if [[ "${PLE_OFFLOAD_EMBEDDING:-0}" == "1" ]]; then
+  ARGS+=( --ple-offload-embedding )
+  if [[ -n "${PLE_OFFLOAD_BACKEND:-}" ]]; then
+    ARGS+=( --ple-offload-backend "${PLE_OFFLOAD_BACKEND}" )
+  fi
+  if [[ -n "${PLE_OFFLOAD_DIR:-}" ]]; then
+    ARGS+=( --ple-offload-dir "${PLE_OFFLOAD_DIR}" )
+  fi
+fi
+
 if [[ "${ENABLE_SLEEP_ON_IDLE:-0}" == "1" ]]; then
   ARGS+=( --sleep-on-idle )
 fi

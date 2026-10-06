@@ -73,6 +73,22 @@ fi
 
 mkdir -p "${HF_HUB_CACHE}"
 
+# Host NVMe path and container path are distinct. Use --mount so spaces in
+# paths are preserved and Docker does not silently create a missing source.
+DOCKER_OPTIONAL_MOUNT_ARGS=()
+if [[ "${PLE_OFFLOAD_EMBEDDING:-0}" == "1" && -n "${PLE_OFFLOAD_HOST_DIR:-}" ]]; then
+  : "${PLE_OFFLOAD_DIR:=/app/ple}"
+  if [[ "${PLE_OFFLOAD_HOST_DIR}" != /* || "${PLE_OFFLOAD_DIR}" != /* ||
+        "${PLE_OFFLOAD_HOST_DIR}" == *,* || "${PLE_OFFLOAD_DIR}" == *,* ]]; then
+    echo "ERROR: PLE offload mount paths must be absolute and contain no commas." >&2
+    return 1 2>/dev/null || exit 1
+  fi
+  mkdir -p "${PLE_OFFLOAD_HOST_DIR}"
+  DOCKER_OPTIONAL_MOUNT_ARGS+=(
+    --mount "type=bind,source=${PLE_OFFLOAD_HOST_DIR},target=${PLE_OFFLOAD_DIR}"
+  )
+fi
+
 docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 
 DOCKER_TTY_ARGS=()
@@ -86,6 +102,12 @@ if [[ "${RESTART_POLICY}" != "no" ]]; then
 fi
 
 DOCKER_OPTIONAL_ENV_ARGS=()
+for var_name in FP4_GEMM_BACKEND PAGE_SIZE MAX_MAMBA_CACHE_SIZE \
+    PLE_OFFLOAD_EMBEDDING PLE_OFFLOAD_BACKEND PLE_OFFLOAD_DIR SGLANG_CACHE_DIR; do
+  if [[ -n "${!var_name:-}" ]]; then
+    DOCKER_OPTIONAL_ENV_ARGS+=( -e "${var_name}=${!var_name}" )
+  fi
+done
 if [[ -n "${TORCHINDUCTOR_COMPILE_THREADS:-}" ]]; then
   DOCKER_OPTIONAL_ENV_ARGS+=(
     -e TORCHINDUCTOR_COMPILE_THREADS="${TORCHINDUCTOR_COMPILE_THREADS}"
@@ -151,4 +173,5 @@ exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   -e HF_HUB_CACHE="/app/models/hub" \
   -e TRANSFORMERS_CACHE="/app/models/hub" \
   -v "${HF_HOME}:/app/models" \
+  "${DOCKER_OPTIONAL_MOUNT_ARGS[@]}" \
   "${IMAGE_NAME}"
