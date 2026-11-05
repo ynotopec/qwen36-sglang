@@ -153,6 +153,44 @@ and port publishing) rather than the one-shot `docker run` lifecycle.
 
 ## Run
 
+### Optional Qwen3.8 Flash Next with PLE file offload
+
+Copy the `NVIDIA Qwen3.8 Flash Next NVFP4 / NEXTN` profile from the end of
+`.env.example` into `.env`, uncomment its assignments, and set a private
+`API_KEY`. Select a `BASE_IMAGE` that includes
+`nvidia/Qwen3.8-Flash-Next-NVFP4` support and the PLE offload flags; support in
+the moving default image is not guaranteed. Then run `./install.sh` and
+`./run.sh` without positional arguments to publish port 30000.
+
+The profile adds `FP4_GEMM_BACKEND`, `PAGE_SIZE`, `MAX_MAMBA_CACHE_SIZE`,
+`PLE_OFFLOAD_EMBEDDING`, and `PLE_OFFLOAD_BACKEND`. Optional `PLE_OFFLOAD_DIR`
+maps to `--ple-offload-dir` inside the container. Set `PLE_OFFLOAD_HOST_DIR`
+to a local NVMe directory to bind-mount it there (default container target:
+`/app/ple`). Both mount paths must be absolute, without commas; quote paths
+containing spaces in `.env`. Without that mount, SGLang uses its container
+storage, or the location selected by `SGLANG_CACHE_DIR` / `PLE_OFFLOAD_DIR`.
+`SGLANG_CACHE_DIR`, when set, is a container path forwarded to SGLang.
+
+Allow at least 47.7 GiB for the sparse PLE table, in addition to model/image
+storage. Its default location is `$SGLANG_CACHE_DIR/ple/<model>`.
+Until the upstream rewrite issue is fixed, stop the container and delete only
+the exact previous PLE table file before each boot. Rewriting a populated table
+has been reported at roughly 17 MB/s (~55 minutes), versus GB/s (~8 minutes)
+for a fresh sparse file. The launcher does not delete files automatically.
+The profile uses `RESTART_POLICY=no` so manual cleanup can precede every boot,
+and increases watchdog startup grace to 1800 seconds.
+
+The wrapper still supplies authentication, its served model name, queue and
+sampling settings. This profile disables sleep-on-idle, tool parsing, and the
+wrapper's explicit Mamba radix-cache flag, and selects automatic KV precision
+to follow the supplied command. Other profiles and defaults remain unchanged.
+
+Wrapper argument checks can run without a GPU:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 ```bash
 source ./run.sh 0.0.0.0 8080
 ```
