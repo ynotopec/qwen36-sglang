@@ -108,6 +108,23 @@ DFlash launch profile.
 Positional arguments to `run.sh`, when supplied, still override `HOST` and
 `PUBLISH_PORT`.
 
+### Hermes Agent on a single DGX Spark
+
+For a host-local Hermes Agent, copy the **Hermes Agent on one DGX Spark**
+assignments from `.env.example` into `.env`, uncomment them, and set your
+private `API_KEY`. Run `./install.sh && ./run.sh`. In `hermes model`, select
+a custom endpoint, enter `http://127.0.0.1:30000/v1`, the same API key, and
+model name `custom`. Set the client temperature to 0 for greedy tool calls.
+
+The profile uses NVIDIA CDI (`GPU_DEVICE=nvidia.com/gpu=all`), reserves a
+0.50 static memory fraction on a shared Spark, and configures a 262144-token
+window. The Mamba ratio of 1.86 assumes 32768 tokens per turn on average
+(input plus output). Each request limit accepts `auto` to omit its SGLang
+flag independently. For Docker installations using the NVIDIA runtime, set
+`GPU_DEVICE=all` to use `--gpus all`.
+
+### Muse Glimmer
+
 The Muse Glimmer command can likewise be expressed through `.env`. Copy the
 Muse profile at the end of `.env.example`, set `API_KEY`, run `./install.sh`,
 and then run `./run.sh`. In particular, the wrapper now exposes the two Muse

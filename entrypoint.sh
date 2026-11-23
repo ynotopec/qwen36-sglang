@@ -17,10 +17,14 @@ ARGS=(
 if [[ "${USE_SGLANG_DEFAULTS:-0}" != "1" ]]; then
   ARGS+=(
     --context-length "${CONTEXT_LENGTH}"
-    --max-running-requests "${MAX_RUNNING_REQUESTS}"
-    --max-queued-requests "${MAX_QUEUED_REQUESTS}"
     --sampling-defaults model
   )
+  if [[ "${MAX_RUNNING_REQUESTS}" != auto ]]; then
+    ARGS+=( --max-running-requests "${MAX_RUNNING_REQUESTS}" )
+  fi
+  if [[ "${MAX_QUEUED_REQUESTS}" != auto ]]; then
+    ARGS+=( --max-queued-requests "${MAX_QUEUED_REQUESTS}" )
+  fi
 fi
 
 if [[ "${TRUST_REMOTE_CODE:-0}" == "1" ]]; then

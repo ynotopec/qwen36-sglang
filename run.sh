@@ -128,9 +128,14 @@ fi
 
 echo "Starting container '${CONTAINER_NAME}' with restart policy '${RESTART_POLICY}'"
 
+gpu_args=(--gpus "${GPU_DEVICE}")
+if [[ "${GPU_DEVICE}" == nvidia.com/gpu=* ]]; then
+  gpu_args=(--device "${GPU_DEVICE}")
+fi
+
 exec docker run "${DOCKER_RUN_CLEANUP_ARGS[@]}" "${DOCKER_TTY_ARGS[@]}" \
   --name "${CONTAINER_NAME}" \
-  --gpus "${GPU_DEVICE}" \
+  "${gpu_args[@]}" \
   --shm-size "${SHM_SIZE}" \
   -p "${IP}:${PORT}:${HTTP_PORT}" \
   -e MODEL_PATH="${MODEL_PATH}" \

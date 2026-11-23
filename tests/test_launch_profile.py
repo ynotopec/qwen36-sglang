@@ -92,12 +92,33 @@ class LaunchProfileTests(unittest.TestCase):
         self.assertIn(f"type=bind,source={nvme},target=/app/ple", docker)
         self.assertIn("--rm", docker)
 
+    def test_hermes_spark_profile(self):
+        example = (ROOT / ".env.example").read_text()
+        block = example.split("# Hermes Agent on one DGX Spark", 1)[1].split("\n\n", 1)[0]
+        profile = "\n".join(line[2:] for line in block.splitlines()
+                            if line.startswith("# ") and "=" in line)
+        docker, args = self.launch(profile)
+        self.assertEqual(docker[docker.index("--device") + 1], "nvidia.com/gpu=all")
+        self.assertNotIn("--gpus", docker)
+        self.assertIn("127.0.0.1:30000:30000", docker)
+        for flag, value in {
+            "--served-model-name": "custom", "--context-length": "262144",
+            "--speculative-algo": "DFLASH", "--speculative-num-draft-tokens": "8",
+            "--mamba-full-memory-ratio": "1.86", "--tool-call-parser": "qwen3_coder",
+        }.items():
+            self.assertEqual(args[args.index(flag) + 1], value, flag)
+        self.assertNotIn("--max-running-requests", args)
+        self.assertNotIn("--max-queued-requests", args)
+
     def test_default_profile_does_not_enable_new_flags(self):
         docker, args = self.launch()
         self.assertEqual(args[args.index("--model-path") + 1], "nvidia/Qwen3.6-35B-A3B-NVFP4")
         for flag in ("--fp4-gemm-backend", "--page-size", "--max-mamba-cache-size",
                      "--ple-offload-embedding", "--ple-offload-backend", "--ple-offload-dir"):
             self.assertNotIn(flag, args)
+        self.assertEqual(docker[docker.index("--gpus") + 1], "all")
+        self.assertEqual(args[args.index("--max-running-requests") + 1], "8")
+        self.assertEqual(args[args.index("--max-queued-requests") + 1], "12")
         self.assertNotIn("--mount", docker)
 
     def test_disabled_ple_ignores_directory_and_backend(self):
